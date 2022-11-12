@@ -4,8 +4,6 @@
 Scripting for an Axess website.
 
 This module provides functions but has no main().
-
-@author: Goyet
 """
 
 from guify import *
@@ -184,12 +182,6 @@ def lvs_get_args(arg_descs=[], shared_args=[], description="", dont_process=[], 
             print("Writing base url to config file ")
             update_config_file({"base_url":url})
         set_base_url(url)
-    if should_process("user"):
-        if args["user"] is None:
-            args["user"]= input("Username:\n")
-    if should_process("password"):
-        if args["password"] is None:
-            args["password"]= input_password("Password:\n")
     if should_process("csv_fname") or should_process("csv_file"):
         if args["csv_fname"] is None:
             args["csv_fname"]= get_csv_filename(prompt_if_notfound=prompt_csv,
@@ -210,6 +202,10 @@ def lvs_get_args(arg_descs=[], shared_args=[], description="", dont_process=[], 
     return args
         
 def open_session(user, password):
+    if user is None:
+        user= input("Username:\n")
+    if password is None:
+        password= input_password("Password:\n")
     json_payload= json.loads('{}')
     json_payload["externalentpersjointure"]= None
     json_payload["login"]= user
@@ -260,7 +256,7 @@ def is_csv_filename(fname):
     return ends_with(fname, ".csv")
 
 def is_lvs_trimester_csv(fname):
-    return ends_with(fname, "Trimestre.csv")
+    return bool(re.match(".*_(1er|2ème|3ème) Trimestre.*\.csv", fname))
 
 def get_csv_filename(prompt_if_notfound= True, silent= False, confirm= False):
     csv_fname=""
@@ -542,7 +538,6 @@ def convert_to_terrible_html_message(text_s):
         r+= '</p>'
     return r
 
-# Exemple: send_message(s, "goyet", "Ca marche", "<p>Bonjour,<br>Ca marche.<br>Cordialement<br></p>")
 def send_message(s, dest_search_s, message_subject, message_body, dest_type="student"):
     r= s.post(get_url("new_message"))
     r.raise_for_status()

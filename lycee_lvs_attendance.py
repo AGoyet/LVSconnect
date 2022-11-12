@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sun Apr 3 2022
-
 Scripting for an Axess website.
-
-@author: Goyet
 """
 
 from lvs_module import *

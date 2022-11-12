@@ -5,13 +5,6 @@ Library to provide input functions (see __all__) using gui or console (if guify_
 Be advised that doing "import *" from this module will replace the built-in "input" function.
 """
 
-import tkinter as tk
-import tkinter.scrolledtext
-import tkinter.simpledialog
-import tkinter.filedialog
-import tkinter.messagebox
-import tkcalendar, babel.numbers
-
 # Used in nogui funs
 import getpass
 import os
@@ -22,7 +15,9 @@ import sys
 import os, os.path
 import json
 
+
 guify_flag= True
+gui_available= True
 
 # Call this function to use all the console ("no_gui") versions of the dialog functions.
 def guify_disable_gui():
@@ -31,8 +26,20 @@ def guify_disable_gui():
 
 def guify_enable_gui():
     global guify_flag
-    guify_flag= True
+    if gui_available:
+        guify_flag= True
 
+try:
+    import tkinter as tk
+    import tkinter.scrolledtext
+    import tkinter.simpledialog
+    import tkinter.filedialog
+    import tkinter.messagebox
+    import tkcalendar
+except ImportError:
+    guify_flag= False
+    gui_available= False
+    
 # Fix blurry text on windows 10 with high DPI
 try:
     from ctypes import windll
@@ -178,31 +185,32 @@ def input_password(prompt="Password:"):
     _add_ir(kwargs)
     return tk.simpledialog.askstring("", prompt, show='*', **kwargs)
 
-class SimpleOptionMenu(tk.simpledialog.Dialog):
-    def __init__(self, option_list, prompt="", title="", parent= None):
-        self.prompt= prompt
-        self.option_list= option_list
-        self.choice = tk.StringVar()
-        if option_list:
-            self.choice.set(option_list[0])
-        else:
-            self.choice.set("")
-        tk.simpledialog.Dialog.__init__(self, parent, title)
-        
-    def body(self, master):
-        w = tk.Label(master, text=self.prompt, justify=tk.LEFT)
-        w.grid(row=0, padx=5, sticky=tk.W)
-        self.dropdown = tk.OptionMenu(master, self.choice, *self.option_list)
-        self.dropdown.grid(row=1, padx=5, sticky=tk.W+tk.E)
-        return self.dropdown
+if gui_available:
+    class SimpleOptionMenu(tk.simpledialog.Dialog):
+        def __init__(self, option_list, prompt="", title="", parent= None):
+            self.prompt= prompt
+            self.option_list= option_list
+            self.choice = tk.StringVar()
+            if option_list:
+                self.choice.set(option_list[0])
+            else:
+                self.choice.set("")
+            tk.simpledialog.Dialog.__init__(self, parent, title)
 
-    def validate(self):
-        self.result= self.choice.get()
-        return 1
-    
-    def destroy(self):
-        self.dropdown = None
-        tk.simpledialog.Dialog.destroy(self)
+        def body(self, master):
+            w = tk.Label(master, text=self.prompt, justify=tk.LEFT)
+            w.grid(row=0, padx=5, sticky=tk.W)
+            self.dropdown = tk.OptionMenu(master, self.choice, *self.option_list)
+            self.dropdown.grid(row=1, padx=5, sticky=tk.W+tk.E)
+            return self.dropdown
+
+        def validate(self):
+            self.result= self.choice.get()
+            return 1
+
+        def destroy(self):
+            self.dropdown = None
+            tk.simpledialog.Dialog.destroy(self)
 
 def askoptions(options, **kwargs):
     _add_ir(kwargs)
@@ -212,37 +220,38 @@ def askoptions(options, **kwargs):
     d= SimpleOptionMenu(options, **kwargs)
     return d.result
 
-class SimpleDateEntry(tk.simpledialog.Dialog):
-    def __init__(self, default=None, prompt="", title="", parent= None, locale= None, date_pattern= None):
-        self.prompt= prompt
-        if default is None:
-            self.default= datetime.date.today()
-            #self.default= datetime.date.fromisoformat("2012-10-12")
-        else:
-            self.default= default
-        self.locale= locale
-        self.date_pattern= date_pattern
-        tk.simpledialog.Dialog.__init__(self, parent, title)
-        
-    def body(self, master):
-        w = tk.Label(master, text=self.prompt, justify=tk.LEFT)
-        w.grid(row=0, padx=5, sticky=tk.W)
-        self.cal = tkcalendar.DateEntry(master=master,
-                                        year=self.default.year,
-                                        month=self.default.month,
-                                        day=self.default.day,
-                                        locale= self.locale,
-                                        date_pattern= self.date_pattern)
-        self.cal.grid(row=1, padx=5, sticky=tk.W+tk.E)
-        return self.cal
+if gui_available:
+    class SimpleDateEntry(tk.simpledialog.Dialog):
+        def __init__(self, default=None, prompt="", title="", parent= None, locale= None, date_pattern= None):
+            self.prompt= prompt
+            if default is None:
+                self.default= datetime.date.today()
+                #self.default= datetime.date.fromisoformat("2012-10-12")
+            else:
+                self.default= default
+            self.locale= locale
+            self.date_pattern= date_pattern
+            tk.simpledialog.Dialog.__init__(self, parent, title)
 
-    def validate(self):
-        self.result= self.cal.get()
-        return 1
-    
-    def destroy(self):
-        self.cal = None
-        tk.simpledialog.Dialog.destroy(self)        
+        def body(self, master):
+            w = tk.Label(master, text=self.prompt, justify=tk.LEFT)
+            w.grid(row=0, padx=5, sticky=tk.W)
+            self.cal = tkcalendar.DateEntry(master=master,
+                                            year=self.default.year,
+                                            month=self.default.month,
+                                            day=self.default.day,
+                                            locale= self.locale,
+                                            date_pattern= self.date_pattern)
+            self.cal.grid(row=1, padx=5, sticky=tk.W+tk.E)
+            return self.cal
+
+        def validate(self):
+            self.result= self.cal.get()
+            return 1
+
+        def destroy(self):
+            self.cal = None
+            tk.simpledialog.Dialog.destroy(self)        
 
 def askdate(**kwargs):
     _add_ir(kwargs)
