@@ -37,6 +37,7 @@ try:
     import tkinter.messagebox
     import tkcalendar
 except ImportError:
+    print("Warning: tkinter could not be imported. Defaulting to console mode (no gui).")
     guify_flag= False
     gui_available= False
     
