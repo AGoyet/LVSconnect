@@ -16,13 +16,12 @@ from bs4 import BeautifulSoup
 import re
 
 
-
 # Use website names instead of english meaning as it makes it easier to compare with network trace.
 add_url("attendance_choixClasseEleveStrater", '/vsn.main/absence/choixClasseEleveStrater')
 add_url("attendance_choixClasseEleve", '/vsn.main/absence/choixClasseEleve')
 add_url("attendance_calendrierAbsenceEleve", '/vsn.main/absence/calendrierAbsenceEleve')
 add_url("attendance_calendrierEleve", '/vsn.main/absence/calendrierEleve')
-
+add_url("attendance_calendrierClasse", '/vsn.main/absence/calendrierAbsenceClasse')
 def all_indices(L, elem):
     indices= []
     start=0
@@ -69,9 +68,9 @@ def mandatory_get_attendance_classgroups(s):
     d= { option.text : option["value"] for option in e.find_all("option") if option["value"] != "null" }
     return d
 
-# returns a dict of student_id : student_name
-def get_all_students_attendance(s, classgroup_id):
-    student_names_of_ids= {}
+# returns a dict of student_name : (classgroup_id, student_id)
+def get_all_students_ids(s, classgroup_id):
+    student_ids= {}
     data= {"idClasse": classgroup_id,
            "clean_resteList":"true", # "true"
            "actionEnd":"calendrierAbsenceEleve",
@@ -86,8 +85,58 @@ def get_all_students_attendance(s, classgroup_id):
     for option in options:
         if option["value"] == "null":
             continue
-        student_names_of_ids[option["value"]]= option.text
-    return student_names_of_ids
+        student_name= option.text
+        student_id= option["value"]
+        student_ids[student_name]= (classgroup_id, student_id)
+    return student_ids
+
+def get_all_students_class_and_ids(s, classgroups):
+    student_class_and_ids= {}
+    for classgroup_id in classgroups.values():
+        student_class_and_ids.update(get_all_students_ids(s, classgroup_id))
+    return student_class_and_ids
+
+# Not used.
+# Works by requesting the calendar view for a whole classgroup; unfortunately this only gives the last month.
+# (Would need to iterate over months by requesting "prev month" each time.)
+def get_attendance_for_last_month(attendance_dict, s, classgroup_id):
+    student_names_of_ids= {}
+    attendance_dict= {}
+    # Re compilation done here for clarity over "speed".
+    # DD/MM/YYYY
+    date_re= re.compile(r"\d\d/\d\d/\d\d\d\d")
+    # One non whitespace char, then anything on the same line, ending with a non whitespace. 
+    # Example: 'De 10h10 à 11h00 - Maladie sans certif/rdv med'
+    motive_re= re.compile(r"\S.*\S")    
+    data= {"idClasse": classgroup_id,
+           "clean_resteList":"true", # "true"
+           "actionEnd":"calendrierAbsenceEleve",
+           "controllerEnd":""}
+    r= s.post(get_url("attendance_calendrierClasse"), data=data)
+    r.raise_for_status()
+    soup= BeautifulSoup(r.text, 'html.parser')
+    tables= soup.find_all("table", class_="tabCalendrierEleve")
+    if len(tables) != 1:
+        raise RuntimeError("Unexpected format of student calendar view (table tag)")
+    tbodys= tables.find_all("tbody")
+    if len(tbodys) != 1:
+        raise RuntimeError("Unexpected format of student calendar view (tbody tag)")
+    trs= tbodys.find_all("tr")
+    for tr in trs:
+        student_name= " ".join(tr.find("th").text.split())
+        spans= tr.find_all("span", class_="corp")
+        for span in spans :
+            m= re.search(date_re, span.text)
+            if m is None:
+                raise RuntimeError("Unexpected format of student calendar view (couldn't find date in cell)")
+            date= m.group()
+            rest= span.text[m.span()[1]:]
+            motive_list= re.findall(motive_re, rest)
+            # Update dict
+            if not date in attendance_dict:
+                attendance_dict[date]= {}
+            attendance_dict[date][student_name]= motive_list
+    return attendance_dict
 
 def get_student_attendance(s, classgroup_id, student_id):
     data= {"idClasse": classgroup_id,
@@ -186,40 +235,34 @@ def convert_date_from_ymd(date_ymd):
 def collect_all_necessary_params(s, classgroups, group_name=None, test_name=None, csv_fname=None, do_all_students=False, trimester=None, test_date=None):
     student_names_to_check= None
     grades_dict= None
-    if (not do_all_students) and test_name is None:
+    # Get group name
+    json_grades= None
+    json_groups= None
+    json_groups= get_groups(s)
+    service_id_of_group_name= get_services(json_groups)
+    if group_name is None:
+        if csv_fname is not None:
+            get_group_name_from_csv(csv_fname)
+        else:
+            group_name= input_pick_option(service_id_of_group_name.keys(),
+                                          prompt="Group name not provided. Choose one:")
+    # Get test name
+    if (not test_name) and (not do_all_students):
         # Maybe the user actually wanted to get all students from the class?
         # We need to know now to let user pick between classes instead of groups (there are more groups).
-        choice= input_yN("No evaluation name provided. Fetch attendance for ALL students in class?")
-        do_all_students= choice
+        choice= input_Yn('Choose evaluation name from the website? (Choosing "No" will get attendance from all students in a group.)')
+        do_all_students= not choice
     if do_all_students:
-        if group_name is None:
-            # Since we do all students, no need to pick between all groups;
-            # just pick between classgroups
-            classgroup_name= input_pick_option(classgroups.keys(), prompt="Class name not provided. Choose one:")
-            classgroup_id= classgroups[classgroup_name]
-        else:
-            classgroup_name, classgroup_id= match_group_to_classgroup(classgroups, group_name)
-            print(f"Group {group_name} matched to class {classgroup_name}.")
         if test_date is None:
             print("No date provided.")
             test_date= input_date_dmy(prompt="Please input the date for which to check attendance.")
+        service_id= service_id_of_group_name[group_name]
+        json_grades= get_grades(s, service_id, 1) # It should be ok to get grades from trimester=1 every time.
+        student_names_to_check= list(get_student_names_of_ids(json_grades).values())
     else:
         # Since we don't do all students, we need to know which test to use;
-        # first we need the group_name
-        json_groups= None
-        json_groups= get_groups(s)
-        service_id_of_group_name= get_services(json_groups)
-        if group_name is None:
-            if csv_fname is not None:
-                get_group_name_from_csv(csv_fname)
-            else:
-                group_name= input_pick_option(service_id_of_group_name.keys(),
-                                              prompt="Group name not provided. Choose one:")
-        # At this point we have a group_name
         service_id= service_id_of_group_name[group_name]
-        classgroup_name, classgroup_id= match_group_to_classgroup(classgroups, group_name)
-        print(f"Group {group_name} matched to class {classgroup_name}.")
-        student_names_to_check, grades_dict= None, None
+        grades_dict= None
         # Get test_name and student_names_to_check. At this point test_name can be None
         if csv_fname:
             # Will get test_name from csv if needed
@@ -255,20 +298,18 @@ def collect_all_necessary_params(s, classgroups, group_name=None, test_name=None
                 choice= input_Yn(f"Evaluation (test) date not provided. Guessed date {test_date} from website. Is this correct?")
                 if not choice:
                     test_date= input_date_dmy(prompt="Please input the date for which to check attendance.")
-    return classgroup_name, classgroup_id, student_names_to_check, grades_dict, test_date
+    return student_names_to_check, grades_dict, test_date
 
 # Returns (attendance_dict, students_not_found, test_date)
 # attendance_dict is a dict of date_DD/MM/YYYY : dict of student_name : motive_list
 # students_not_found is a set of student names
 # test_date is returned because of the arg processing 
-def get_attendances(s, classgroup_name, classgroup_id, student_names_to_check=None):
+def get_attendances(s, classgroups, student_names_to_check):
     attendance_dict= {}
-    student_names_of_ids= get_all_students_attendance(s, classgroup_id)
-    if student_names_to_check is None:
-        students_not_found= set()
-    else:
-        students_not_found= set(student_names_to_check.copy())
-    for student_id, student_name in student_names_of_ids.items():
+    students_not_found= set(student_names_to_check.copy())
+    student_class_and_ids= get_all_students_class_and_ids(s, classgroups)
+    for student_name in student_class_and_ids:
+        classgroup_id, student_id= student_class_and_ids[student_name]
         if not student_names_to_check is None:
             if not student_name in student_names_to_check:
                 continue
@@ -277,7 +318,7 @@ def get_attendances(s, classgroup_name, classgroup_id, student_names_to_check=No
         soup= get_student_attendance(s, classgroup_id, student_id)
         parse_student_calendar(attendance_dict, soup, student_name)
     if students_not_found:
-        print(f"Warning: The following students were in the CSV file but not on attendance list: {nicer_str(students_not_found)}")
+        print(f"Warning: The following students were not on the attendance lists: {nicer_str(students_not_found)}")
     return (attendance_dict, students_not_found)
 
 def output_attendance_sub(attendance_dict, test_date,
@@ -354,7 +395,7 @@ def main():
             (('-f', '--csv_file'), {'metavar':'FILE', 'dest':'csv_fname', 'nargs':"?",
                                     'help':'This should be a CSV file generated by the website. If provided, group name and trimester can be omitted.'}),
             (('-a', '--all-students'), {'dest':'do_all_students', 'action':'store_true',
-                                        'help':'Check attendance for all students in the class. In this case, the evaluation name can be omitted.'}),
+                                        'help':'Check attendance for all students in a group. In this case, the evaluation name can be omitted.'}),
             (('-e', '--evaluation'), {'dest': 'test_name', 'metavar':'EVAL',
                                       'help':'The name of the evaluation (test}) for which to check attendance. If given, only students who do not have a numeric non zero grade will be checked. For example, an empty cell or "ABS" will be checked. Grades are taken from the CSV file if provided, or from the website.'}),
              (('-o', '--output-file'), {'dest': 'output_file',
@@ -372,11 +413,8 @@ def main():
                                              do_all_students= args["do_all_students"],
                                              trimester= args["trimester"],
                                              test_date= args["test_date"])
-        classgroup_name, classgroup_id, student_names_to_check, grades_dict, test_date= params
-        attendance_dict, students_not_found= get_attendances(s,
-                                                             classgroup_name,
-                                                             classgroup_id,
-                                                             student_names_to_check=student_names_to_check)
+        student_names_to_check, grades_dict, test_date= params
+        attendance_dict, students_not_found= get_attendances(s, classgroups, student_names_to_check)
         output_attendance(attendance_dict, test_date,
                           students_not_found=students_not_found,
                           output_file= args["output_file"],
