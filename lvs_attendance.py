@@ -250,7 +250,7 @@ def collect_all_necessary_params(s, classgroups, group_name=None, test_name=None
     if (not test_name) and (not do_all_students):
         # Maybe the user actually wanted to get all students from the class?
         # We need to know now to let user pick between classes instead of groups (there are more groups).
-        choice= input_Yn('Choose evaluation name from the website? (Choosing "No" will get attendance from all students in a group.)')
+        choice= input_Yn('Select evaluation form a list? (Choosing "No" will get attendance from all students from a group.)')
         do_all_students= not choice
     if do_all_students:
         if test_date is None:
@@ -306,17 +306,16 @@ def collect_all_necessary_params(s, classgroups, group_name=None, test_name=None
 # test_date is returned because of the arg processing 
 def get_attendances(s, classgroups, student_names_to_check):
     attendance_dict= {}
-    students_not_found= set(student_names_to_check.copy())
+    students_not_found= []
     student_class_and_ids= get_all_students_class_and_ids(s, classgroups)
-    for student_name in student_class_and_ids:
-        classgroup_id, student_id= student_class_and_ids[student_name]
-        if not student_names_to_check is None:
-            if not student_name in student_names_to_check:
-                continue
-        students_not_found.discard(student_name)
-        print("Reading calendar for student", student_name)
-        soup= get_student_attendance(s, classgroup_id, student_id)
-        parse_student_calendar(attendance_dict, soup, student_name)
+    for student_name in student_names_to_check:
+        if not student_name in student_class_and_ids:
+            students_not_found.append(student_name)
+        else:
+            classgroup_id, student_id= student_class_and_ids[student_name]            
+            print("Reading calendar for student", student_name)
+            soup= get_student_attendance(s, classgroup_id, student_id)
+            parse_student_calendar(attendance_dict, soup, student_name)
     if students_not_found:
         print(f"Warning: The following students were not on the attendance lists: {nicer_str(students_not_found)}")
     return (attendance_dict, students_not_found)
