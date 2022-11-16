@@ -13,6 +13,10 @@ import os, sys
 import re
 import random, time # for delays
 
+add_url("send_grades", "/vsn.main/WSCompetences/saveBatchEvaluations")
+add_url("create_test", "/vsn.main/WSCompetences/creerEvaluation")
+add_url("modify_test", "/vsn.main/WSCompetences/modifierDevoir")
+
 # Returns a dict of test_name : (col, max_grade, coefficient)
 def get_tests_from_csv(csv_fname):
     rows= get_csv_rows(csv_fname)
@@ -67,25 +71,55 @@ def create_test(s, service_id, trimester, test_name, desc, hidden= False):
     desc_full= desc + (test_id,)
     return desc_full
 
+def modify_test_desc(s, json_grades, service_id, trimester, test_name, max_grade, coefficient):
+    devoir= None
+    for devoir in json_grades["evaluations"]:
+        if devoir["titre"] == test_name:
+            break
+    assert devoir
+    # The json "devoir" will be our basis for the payload.
+    # We first need to trim the keys we don't need from it.
+    payload_keys= {'id', 'verrouille', 'sousServiceId', 'publie', 'enseignantId', 'noteMaximalEvaluation', 'periodeId', 'titre', 'typeEvaluation', 'competenceIds', 'serviceId', 'coefficient', 'dateDevoir', 'typeDevoir'}
+    json_eval= devoir.copy()
+    for k in devoir:
+        if not k in payload_keys:
+            del json_eval[k]
+    # Now add the keys not in devoir
+    json_eval["competenceIds"]= []
+    json_eval["periodeId"]= trimester
+    json_eval["serviceId"]= service_id
+    # Now modify the remaining keys to match csv desc.
+    json_eval["noteMaximalEvaluation"]= max_grade
+    json_eval["coefficient"]= coefficient
+    json_payload=json.loads('{}')
+    json_payload["evaluation"]=json_eval
+    print("Modifying max grade or coefficient for", test_name)
+    r= s.post(get_url("modify_test"), json= json_payload)
+    r.raise_for_status()
+
 # Returns (created_flag, test_descs_full),
 # Where test_descs_full is a dict of test_name : (col, max_grade, coefficient, test_id)
 def get_test_id_and_create_tests(s, service_id, trimester, json_grades, test_descs,
                                  create_tests= False, hidden= False):
     created_flag= False
-    test_descs_full= {} # Same as test_descs, with test_id added at the end
+    test_descs_full= {}
     tests_not_in_website= []
-    id_of_name= {devoir["titre"]:devoir["id"] for devoir in json_grades["evaluations"]}
+    tests_with_new_desc= []
+    website_descs= {devoir["titre"]:(devoir["noteMaximalEvaluation"], devoir["coefficient"], devoir["id"]) for devoir in json_grades["evaluations"]}
+    tests_not_in_csv= set(website_descs.keys())
     for (test_name, desc) in test_descs.items():
-        if test_name in id_of_name.keys():
-            test_id= id_of_name[test_name]
+        if test_name in website_descs.keys():
+            max_grade, coefficitent, test_id= website_descs[test_name]
             # tuple addition (new tuple with one more element)
             test_descs_full[test_name] = desc + (test_id,)
-            del id_of_name[test_name]
+            if (not grade_equality(max_grade, desc[1])) or coefficitent != desc[2]:
+                tests_with_new_desc.append(test_name)
+            tests_not_in_csv.remove(test_name)
         else:
             tests_not_in_website.append(test_name)
-    if len(id_of_name) > 0:
-        print("WARNING: "+str(len(id_of_name))+" test(s) are present on the website but not in the csv file: " + ", ".join(id_of_name.keys()))
-    if len(tests_not_in_website) > 0:
+    if tests_not_in_csv:
+        print("WARNING: "+str(len(id_of_name))+" test(s) are present on the website but not in the csv file: " + ", ".join(tests_not_in_csv))
+    if tests_not_in_website:
         print("Found "+str(len(tests_not_in_website))+" test(s) not present on the website: " + ", ".join(tests_not_in_website))
         if create_tests:
             first_it= True
@@ -93,14 +127,27 @@ def get_test_id_and_create_tests(s, service_id, trimester, json_grades, test_des
                 if first_it:
                     first_it= False
                 else:
-                    print("Adding delay ( < 3s) between requests...")
-                    time.sleep(random.uniform(2,3))
+                    time.sleep(.1)
                 desc= test_descs[test_name]
                 desc_full= create_test(s, service_id, trimester, test_name, desc, hidden=hidden)
                 test_descs_full[test_name] = desc_full
                 created_flag= True
     if created_flag:
         print("Test(s) successfully created. Note that their creation date has been set to today.")
+    if tests_with_new_desc:
+        print("Found "+str(len(tests_with_new_desc))+" test(s) with max grade or coefficient different than on the website: " + ", ".join(tests_with_new_desc))
+        if create_test:
+            dialog_s= "Upload the modified max grades and coefficients? ("+str(len(tests_with_new_desc))+" test(s) will be modified.)"
+            answer= input_Yn(dialog_s)
+            if answer:
+                first_it= True
+                for test_name in tests_with_new_desc:
+                    if first_it:
+                        first_it= False
+                    else:
+                        time.sleep(.1)
+                    (col, max_grade, coefficient)= test_descs[test_name]
+                    modify_test_desc(s, json_grades, service_id, trimester, test_name, max_grade, coefficient)
     return (created_flag, test_descs_full)
 
 def str_of_translated_list(d, L):
@@ -243,7 +290,7 @@ def main():
             (('--write',), {'action':argparse.BooleanOptionalAction, 'help':'Write or do not write grades to the website. Default is to ask. Note that this is independent from creating new tests. However, --no-write implies --no-delete.'}),
             (('--delete',), {'action':argparse.BooleanOptionalAction, 'help':'Delete or do not delete grades present on the website. Default is to ask. "Deleting" here means to replace with an empty grade. This does not delete tests.'}),
             (('--create',), {'action':argparse.BooleanOptionalAction, 'help':'Create or do not create tests if they do not exist on the website. Default is to create.'}),
-            (('--hidden',), {'action':argparse.BooleanOptionalAction, 'help':'Keep the test hidden from students (corresponds to the "publish" option on the website). Default is to publish the test. Does not affect tests which already exist on the website.'})
+            (('--hidden',), {'action':argparse.BooleanOptionalAction, 'help':'When creating tests, keep it hidden from students (corresponds to the "publish" option on the website). Default is to publish the test. Does not affect tests which already exist on the website.'})
         ]
         shared_args=["dry-run", "group", "trimester"]
         args= lvs_get_args(arg_descs=arg_descs, shared_args= shared_args, description='Upload grades from a csv file to a specific axess website.', required=["csv_fname"])
@@ -270,6 +317,7 @@ def main():
                     create_tests= args["create"], hidden= args["hidden"],
                     ask_to_write= args["ask_to_write"], never_write= args["never_write"],
                     ask_to_delete= args["ask_to_delete"], never_delete= args["never_delete"])
+        show_message("Done.")
     finally:
         if s is not None:
             s.close()

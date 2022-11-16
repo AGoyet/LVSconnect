@@ -56,15 +56,8 @@ add_url("recus", '/vsn.main/WSmessagerie/avecpages/2/0')
 
 # grades
 add_url("get_groups", "/vsn.main/WSCompetences/loadServicesProf")
-add_url("send_grades", "/vsn.main/WSCompetences/saveBatchEvaluations")
-add_url("new_test", "/vsn.main/WSCompetences/creerEvaluation")
 add_url("get_grades", "/vsn.main/WSCompetences/loadDevoirsNotesMoyennes")
-add_url("create_test", "/vsn.main/WSCompetences/creerEvaluation")
 
-# appreciations
-add_url("send_appr", "/vsn.main/WSCompetences/saveAppreciation")
-        
-        
 def update_config_from_file(config_dict, fname, silent= False):
     try:
         ffname= os.path.abspath(fname)

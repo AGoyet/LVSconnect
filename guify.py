@@ -53,7 +53,8 @@ __all__= ["guify_disable_gui", "guify_enable_gui",
           "input_password",
           "input_pick_option", "input_date_dmy",
           "input_open_file", "input_save_file",
-          "input_Yn_str", "input_yN_str", "input_Yn", "input_yN"]
+          "input_Yn_str", "input_yN_str", "input_Yn", "input_yN",
+          "show_message"]
 
 # Unused for now.
 def echo_result(func):
@@ -140,6 +141,9 @@ def input_date_dmy_nogui(prompt="Enter a date:"):
             date= ""
     return date
 
+def show_message_nogui(message):
+    print(message)
+
 def guify_fun(nogui_version):
     def decorator(func):
         def new_func(*args, **kwargs):
@@ -173,6 +177,7 @@ def _add_ir(d):
         invisible_root.title("")
     d["parent"]= invisible_root
 
+    
 @guify_fun(input)
 def input_str(prompt):
     kwargs= {}
@@ -338,6 +343,15 @@ def input_Yn(prompt=""):
 @guify_fun(input_Yn_nogui)
 def input_yN(prompt=""):
     return input_Yn_or_yN(prompt=prompt, default="no")
+
+# This function can be useful to show "Done" at the end of the program, keeping it alive until the dialog is closed.
+# Otherwise when launching a program made with pyinstaller, a console will open at the start, but it will
+# close as soon as the program exits, hiding all the output that the user might want to read.
+@guify_fun(show_message_nogui)
+def show_message(message):
+    kwargs= {}
+    _add_ir(kwargs)
+    tk.messagebox.showinfo(message=message)
 
 # Careful, replaces builtin.input
 input= input_str
