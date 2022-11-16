@@ -207,6 +207,7 @@ def send_grades(s, csv_fname, trimester, group_name,
         return "For student(s): "+", ".join(names)
     # A "deleted" grade is when we replace something with ''
     delete_count= 0
+    overwrite_count= 0
     written_count= 0
     modified_tests= set()
     for test_name, (test_col, max_grade, coefficient, test_id) in test_descs_full.items():
@@ -249,6 +250,7 @@ def send_grades(s, csv_fname, trimester, group_name,
         if len(overwritten_list) > 0:
             print(f"Warning: in test \"{test_name}\": {len(overwritten_list)} grade(s) to upload would OVERWRITE an existing grade on website.")
             print(students_preview(overwritten_list))
+            overwrite_count+= len(overwritten_list)
         if len(deleted_list) > 0 and not never_delete:
             print(f"Warning: in test \"{test_name}\": {len(deleted_list)} grade(s) to upload would DELETE an existing grade on website.")
             print(students_preview(deleted_list))
@@ -262,8 +264,8 @@ def send_grades(s, csv_fname, trimester, group_name,
         print("Not uploading as per option.")
         return
     dialog_s= ""
-    if delete_count > 0 and ask_to_delete:
-        dialog_s+= "Uploading grades will DELETE "+str(delete_count)+" grade(s) on the website.\n"
+    if delete_count + overwrite_count > 0 and ask_to_delete:
+        dialog_s+= f"Uploading grades will DELETE {delete_count} and OVERWRITE {overwrite_count} grade(s) on the website.\n"
     if ask_to_write:
         dialog_s+= "Uploading will write "+str(written_count)+" grade(s) to the website.\n"
     if dialog_s != "":
@@ -287,8 +289,8 @@ def main():
                         'help':'The csv file in which grades will be read. Can be omitted if there is only one csv file in the working directory. The program expects the file to be in the format exported by the website. In particular, test names should be on the first line, with the cell below each name describing the maximum grade and grade multiplier as in the following: "/10 - Coef : 0.5".'}),
 #            (('-e', '--evaluation'), {
 #                        'help':'If provided, only this evaluation (test) will be modified on the website.'}),            
-            (('--write',), {'action':argparse.BooleanOptionalAction, 'help':'Write or do not write grades to the website. Default is to ask. Note that this is independent from creating new tests. However, --no-write implies --no-delete.'}),
-            (('--delete',), {'action':argparse.BooleanOptionalAction, 'help':'Delete or do not delete grades present on the website. Default is to ask. "Deleting" here means to replace with an empty grade. This does not delete tests.'}),
+            (('--write',), {'action':argparse.BooleanOptionalAction, 'help':'Write grades to the website. Default is to ask. Note that this is independent from creating new tests. However, --no-write implies --no-delete.'}),
+            (('--delete', '--overwrite'), {'action':argparse.BooleanOptionalAction, 'help':'Overwrite existing grades on the website (including deleting them if they are not present in the CSV). Default is to ask. This does not delete tests.'}),
             (('--create',), {'action':argparse.BooleanOptionalAction, 'help':'Create or do not create tests if they do not exist on the website. Default is to create.'}),
             (('--hidden',), {'action':argparse.BooleanOptionalAction, 'help':'When creating tests, keep it hidden from students (corresponds to the "publish" option on the website). Default is to publish the test. Does not affect tests which already exist on the website.'})
         ]
