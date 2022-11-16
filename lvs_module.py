@@ -277,7 +277,7 @@ def get_csv_filename(prompt_if_notfound= True, silent= False, confirm= False):
     got_from_dialog_flag= False
     if csv_fname == "":
         print(f"No csv file specified as an argument, and none found in working directory {os.getcwd()}.")
-        csv_fname= input_open_file("Enter the name of the CSV file (default is to abort):\n",
+        csv_fname= input_open_file("Enter the name of the CSV file:\n",
                                    filetypes=[("CSV files", ".csv"), ("all files", "*")])
         got_from_dialog_flag= True
         if csv_fname == "":

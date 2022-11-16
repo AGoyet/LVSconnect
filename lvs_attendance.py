@@ -256,6 +256,8 @@ def collect_all_necessary_params(s, classgroups, group_name=None, test_name=None
         if test_date is None:
             print("No date provided.")
             test_date= input_date_dmy(prompt="Please input the date for which to check attendance.")
+            if not test_date:
+                raise RuntimeError("No date provided. Aborting.")
         service_id= service_id_of_group_name[group_name]
         json_grades= get_grades(s, service_id, 1) # It should be ok to get grades from trimester=1 every time.
         student_names_to_check= list(get_student_names_of_ids(json_grades).values())
