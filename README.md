@@ -69,7 +69,7 @@ To distribute it as a Windows executable, the provided pyinstaller scripts can b
 Because English is the lingua franca of programming. This would allow part of the code (including dialogs)
 to be reused in other projects not aimed at a french audience. A localization PR would of course be welcome.
 
-#### Why is this program sometimes speaking French to me?
+#### Then why is this program sometimes speaking French to me?
 Some of the text comes directly from the website and is thus possibly in French.
 
 #### Does the program store my password?

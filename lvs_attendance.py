@@ -2,19 +2,13 @@
 # -*- coding: utf-8 -*-
 """
 Scripting for an Axess website.
+
+Cecks for student's attendance for a given test or date.
 """
 
 from lvs_module import *
-from guify import *
 
-import argparse
-import requests
-import json
-import csv
-import os, sys
 from bs4 import BeautifulSoup
-import re
-
 
 # Use website names instead of english meaning as it makes it easier to compare with network trace.
 add_url("attendance_choixClasseEleveStrater", '/vsn.main/absence/choixClasseEleveStrater')
@@ -72,7 +66,7 @@ def mandatory_get_attendance_classgroups(s):
 def get_all_students_ids(s, classgroup_id):
     student_ids= {}
     data= {"idClasse": classgroup_id,
-           "clean_resteList":"true", # "true"
+           "clean_resteList":"true",
            "actionEnd":"calendrierAbsenceEleve",
            "controllerEnd":""}
     r= s.post(get_url("attendance_choixClasseEleve"), data=data)
@@ -109,7 +103,7 @@ def get_attendance_for_last_month(attendance_dict, s, classgroup_id):
     # Example: 'De 10h10 à 11h00 - Maladie sans certif/rdv med'
     motive_re= re.compile(r"\S.*\S")    
     data= {"idClasse": classgroup_id,
-           "clean_resteList":"true", # "true"
+           "clean_resteList":"true",
            "actionEnd":"calendrierAbsenceEleve",
            "controllerEnd":""}
     r= s.post(get_url("attendance_calendrierClasse"), data=data)
@@ -253,7 +247,7 @@ def collect_all_necessary_params(s, classgroups, group_name=None, test_name=None
         choice= input_Yn('Select evaluation form a list? (Choosing "No" will get attendance from all students from a group.)')
         do_all_students= not choice
     if do_all_students:
-        if test_date is None:
+        if not test_date:
             print("No date provided.")
             test_date= input_date_dmy(prompt="Please input the date for which to check attendance.")
             if not test_date:

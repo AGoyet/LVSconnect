@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 """
 Scripting for an Axess website.
 
@@ -8,7 +7,6 @@ This module provides functions but has no main().
 
 from guify import *
 
-#import argparse
 import requests
 import json
 import csv
@@ -17,8 +15,7 @@ import os, sys
 import datetime
 import os.path
 import re
-#import datetime
-import random, time # for delays
+import time 
 import getpass
 import argparse
 import appdirs
@@ -297,20 +294,27 @@ def get_csv_filename(prompt_if_notfound= True, silent= False, confirm= False):
     return csv_fname
 
 def get_csv_rows(csv_fname):
-    csv_f= open(csv_fname)
-    lines= csv_f.readlines()
-    csv_f.seek(0)
-    dialect= csv.Sniffer().sniff("\n".join(lines[:4]))
-    csv_reader= csv.reader(csv_f, dialect=dialect)
-    rows= list(csv_reader)
-    csv_f.close()
-    return rows
+    with open(csv_fname, encoding='utf-8') as csv_f:
+        lines= csv_f.readlines()
+        csv_f.seek(0)
+        dialect= csv.Sniffer().sniff("\n".join(lines[:4]))
+        csv_reader= csv.reader(csv_f, dialect=dialect)
+        rows= list(csv_reader)
+        if rows and rows[0]:
+            # \ufeff is the utf-8 BOM character. It is sometimes inserted at the sart of CSV files, causing problems.
+            if rows[0][0][0] == "\ufeff":
+                rows[0][0]= rows[0][0][1:]
+        csv_f.close()
+        return rows
 
 def get_group_name_from_csv(csv_fname):
     rows= get_csv_rows(csv_fname)
     if len(rows) < 1:
         raise RuntimeError("Empty csv file")
     group_name_csv= rows[0][0]
+    group_name_csv= group_name_csv.strip()
+    group_name_csv= group_name_csv.replace("\"","")
+    group_name_csv= group_name_csv.replace("\ufeff","") # utf-8 BOM
     print("Using group name from csv:", group_name_csv)
     return group_name_csv
 

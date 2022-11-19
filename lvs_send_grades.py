@@ -2,16 +2,11 @@
 # -*- coding: utf-8 -*-
 """
 Scripting for an Axess website.
+
+Send grades from csv file to the website.
 """
 
 from lvs_module import *
-
-import requests
-import json
-import csv
-import os, sys
-import re
-import random, time # for delays
 
 add_url("send_grades", "/vsn.main/WSCompetences/saveBatchEvaluations")
 add_url("create_test", "/vsn.main/WSCompetences/creerEvaluation")
@@ -118,7 +113,7 @@ def get_test_id_and_create_tests(s, service_id, trimester, json_grades, test_des
         else:
             tests_not_in_website.append(test_name)
     if tests_not_in_csv:
-        print("WARNING: "+str(len(id_of_name))+" test(s) are present on the website but not in the csv file: " + ", ".join(tests_not_in_csv))
+        print("WARNING: "+str(len(tests_not_in_csv))+" test(s) are present on the website but not in the csv file: " + ", ".join(tests_not_in_csv))
     if tests_not_in_website:
         print("Found "+str(len(tests_not_in_website))+" test(s) not present on the website: " + ", ".join(tests_not_in_website))
         if create_tests:
@@ -168,9 +163,9 @@ def grade_equality(g1, g2):
         # we already know g1 != g2
         return False
     try:
-        g1= float(g1)
-        g2= float(g2)
-        return g1 == g2
+        g1f= float(str(g1).replace(",","."))
+        g2f= float(str(g2).replace(",","."))
+        return g1f == g2f
     except ValueError:
         # At leaset one is not a float, and they are not string equal
         return False
@@ -265,7 +260,14 @@ def send_grades(s, csv_fname, trimester, group_name,
         return
     dialog_s= ""
     if delete_count + overwrite_count > 0 and ask_to_delete:
-        dialog_s+= f"Uploading grades will DELETE {delete_count} and OVERWRITE {overwrite_count} grade(s) on the website.\n"
+        dialog_s+= "Uploading grades will "
+        if delete_count:
+            dialog_s+= f"DELETE {delete_count}"
+        if delete_count and overwrite_count:
+            dialog_s+= " and "
+        if overwrite_count:
+            dialog_s+= f"OVERWRITE {overwrite_count}"
+        dialog_s+= " grade(s) on the website.\n"
     if ask_to_write:
         dialog_s+= "Uploading will write "+str(written_count)+" grade(s) to the website.\n"
     if dialog_s != "":
@@ -323,7 +325,6 @@ def main():
     finally:
         if s is not None:
             s.close()
-
 
 if __name__ == '__main__' :
     display_errors(main)
