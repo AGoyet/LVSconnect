@@ -511,7 +511,7 @@ def get_mess_dest_json(s, dest_search_s, dest_type= "student"):
     json_payload_dest_search['keyword']= dest_search_s
     dest_types={"staff":0, "teacher":1, "student":2, "parent":3, "all":5}
     if not dest_type in dest_types:
-        raise Exception('Incorrect destinatory type (should be in '+ str(list(dest_type.keys())) + ')')
+        raise Exception(f'Incorrect destinatory type (should be in {list(dest_type.keys())})')
     json_payload_dest_search['profils'][0]= dest_types[dest_type]
     r= s.post(get_url("dest"), json= json_payload_dest_search)
     r.raise_for_status()

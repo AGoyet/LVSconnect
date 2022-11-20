@@ -31,9 +31,9 @@ def get_tests_from_csv(csv_fname):
         desc= (i, float(match.groups()[0]), float(match.groups()[1]))
         test_name= rows[0][i]
         if test_name.strip() == "":
-            raise RuntimeError("Detected a test description \"" + desc + "\" in column" + str(i+1) + " (starting from 1), but the cell above is empty (expected a valid test name).")
+            raise RuntimeError(f'Detected a test description "{desc}" in column {i+1} (starting from 1), but the cell above is empty (expected a valid test name).')
         if test_name in test_descs.keys():
-            raise RuntimeError("Test name \""+test_name+"\" appears multiple times in first row of csv file.")
+            raise RuntimeError(f'Test name "{test_name}" appears multiple times in first row of csv file.')
         test_descs[test_name]= desc
     print("Found",len(test_descs),"tests in the csv file: ", ", ".join(test_descs.keys()))
     return test_descs
@@ -113,9 +113,9 @@ def get_test_id_and_create_tests(s, service_id, trimester, json_grades, test_des
         else:
             tests_not_in_website.append(test_name)
     if tests_not_in_csv:
-        print("WARNING: "+str(len(tests_not_in_csv))+" test(s) are present on the website but not in the csv file: " + ", ".join(tests_not_in_csv))
+        print(f"WARNING: {len(tests_not_in_csv)} test(s) are present on the website but not in the csv file: {', '.join(tests_not_in_csv)}")
     if tests_not_in_website:
-        print("Found "+str(len(tests_not_in_website))+" test(s) not present on the website: " + ", ".join(tests_not_in_website))
+        print(f"Found {len(tests_not_in_website)} test(s) not present on the website: {', '}.join(tests_not_in_website)")
         if create_tests:
             first_it= True
             for test_name in tests_not_in_website:
@@ -130,9 +130,9 @@ def get_test_id_and_create_tests(s, service_id, trimester, json_grades, test_des
     if created_flag:
         print("Test(s) successfully created. Note that their creation date has been set to today.")
     if tests_with_new_desc:
-        print("Found "+str(len(tests_with_new_desc))+" test(s) with max grade or coefficient different than on the website: " + ", ".join(tests_with_new_desc))
+        print(f"Found {len(tests_with_new_desc)} test(s) with max grade or coefficient different than on the website: {', '.join(tests_with_new_desc)}")
         if create_test:
-            dialog_s= "Upload the modified max grades and coefficients? ("+str(len(tests_with_new_desc))+" test(s) will be modified.)"
+            dialog_s= f"Upload the modified max grades and coefficients? ({len(tests_with_new_desc)} test(s) will be modified.)"
             answer= input_Yn(dialog_s)
             if answer:
                 first_it= True
@@ -170,7 +170,6 @@ def grade_equality(g1, g2):
         # At leaset one is not a float, and they are not string equal
         return False
     
-# Defaults to dry run
 def send_grades(s, csv_fname, trimester, group_name,
                 create_tests= False, hidden= False,
                 ask_to_write= True, never_write= False,
@@ -203,16 +202,17 @@ def send_grades(s, csv_fname, trimester, group_name,
     # A "deleted" grade is when we replace something with ''
     delete_count= 0
     overwrite_count= 0
-    written_count= 0
+    write_count= 0
     modified_tests= set()
     for test_name, (test_col, max_grade, coefficient, test_id) in test_descs_full.items():
-        written_list= []        
-        overwritten_list= []
-        deleted_list= []
+        write_list= []        
+        overwrite_list= []
+        delete_list= []
         for (student_id, row) in row_of_student_id.items():
             grade_csv= row[test_col]
+            # Clip grades to max_grade
             try:
-                g= float(grade_csv)
+                g= float(str(grade_csv).replace(",","."))
                 assert g >= 0 # csv parser shouldn't produce < 0
                 if g > max_grade:
                     print(f"Warning: In test \"{test_name}\", grade \"{grade_csv}\" in csv file is greater than the maximum grade of {max_grade}. Replacing it with {max_grade}")
@@ -224,35 +224,36 @@ def send_grades(s, csv_fname, trimester, group_name,
                 if grade_equality(grade_web, grade_csv):
                     # Don't fill the request with overwrites of the existing values
                     continue
-                if grade_csv == '' or grade_csv is None:
-                    deleted_list.append(student_id)
+                if not grade_csv:
+                    # We know that grade_web != grade_csv, so this would be a deletion
+                    delete_list.append(student_id)
                     if never_delete:
-                        # Do not put deltes in the request if this option is True
+                        # Do not put deletes in the request if this option is True
                         continue
-                elif not (grade_web == '' or grade_web is None):
-                    overwritten_list.append(student_id)
-            written_list.append(student_id)
+                elif grade_web:
+                    overwrite_list.append(student_id)
+            write_list.append(student_id)
             json_payload_saisie= json_payload_saisie_template.copy()
             json_payload_saisie["ideleve"]= student_id
             json_payload_saisie["iddevoir"]= test_id
             json_payload_saisie["note"]= grade_csv
             json_payload["saisies"].append(json_payload_saisie)
             modified_tests.add(test_id)
-        if len(written_list) > 0:
-            print(f"Test \"{test_name}\": {len(written_list)} grade(s) to upload.")
-            print(students_preview(written_list))
-            written_count+= len(written_list)
-        if len(overwritten_list) > 0:
-            print(f"Warning: in test \"{test_name}\": {len(overwritten_list)} grade(s) to upload would OVERWRITE an existing grade on website.")
-            print(students_preview(overwritten_list))
-            overwrite_count+= len(overwritten_list)
-        if len(deleted_list) > 0 and not never_delete:
-            print(f"Warning: in test \"{test_name}\": {len(deleted_list)} grade(s) to upload would DELETE an existing grade on website.")
-            print(students_preview(deleted_list))
-            delete_count+= len(deleted_list)
+        if len(write_list) > 0:
+            print(f"Test \"{test_name}\": {len(write_list)} grade(s) to upload.")
+            print(students_preview(write_list))
+            write_count+= len(write_list)
+        if len(overwrite_list) > 0:
+            print(f"Warning: in test \"{test_name}\": {len(overwrite_list)} grade(s) to upload would OVERWRITE an existing grade on website.")
+            print(students_preview(overwrite_list))
+            overwrite_count+= len(overwrite_list)
+        if len(delete_list) > 0 and not never_delete:
+            print(f"Warning: in test \"{test_name}\": {len(delete_list)} grade(s) to upload would DELETE an existing grade on website.")
+            print(students_preview(delete_list))
+            delete_count+= len(delete_list)
     for test_id in modified_tests:
         json_payload["devoirs"].append(test_id)
-    if written_count == 0:
+    if write_count == 0:
         print("No grades need to be uploaded.")
         return
     if never_write:
@@ -269,7 +270,7 @@ def send_grades(s, csv_fname, trimester, group_name,
             dialog_s+= f"OVERWRITE {overwrite_count}"
         dialog_s+= " grade(s) on the website.\n"
     if ask_to_write:
-        dialog_s+= "Uploading will write "+str(written_count)+" grade(s) to the website.\n"
+        dialog_s+= f"Uploading will write {write_count} grade(s) to the website.\n"
     if dialog_s != "":
         answer= input_Yn(dialog_s + "Continue?")
         if not answer:
@@ -281,7 +282,6 @@ def send_grades(s, csv_fname, trimester, group_name,
     # Actual uploading
     r= s.post(url, json= json_payload)
     r.raise_for_status()
-    print("Done.")
     
 def main():
     try:
@@ -296,7 +296,7 @@ def main():
             (('--create',), {'action':argparse.BooleanOptionalAction, 'help':'Create or do not create tests if they do not exist on the website. Default is to create.'}),
             (('--hidden',), {'action':argparse.BooleanOptionalAction, 'help':'When creating tests, keep it hidden from students (corresponds to the "publish" option on the website). Default is to publish the test. Does not affect tests which already exist on the website.'})
         ]
-        shared_args=["dry-run", "group", "trimester"]
+        shared_args=["group", "trimester"]
         args= lvs_get_args(arg_descs=arg_descs, shared_args= shared_args, description='Upload grades from a csv file to a specific axess website.', required=["csv_fname"])
         if args["write"] is None:
             args["ask_to_write"]= True
