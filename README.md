@@ -18,7 +18,7 @@ and will ask interactively for any needed parameter.
 
 ### lvs_attendance
 
-This program will show all student that were absent for a given test, with the motive as registered by the school administration.
+This program will show all students that were absent for a given test, with the motive as registered by the school administration.
 This is slightly better than using the calendar view for attendance on the website, which checks for a "class" of students whereas
 this program checks for a "class". Groups can mix students from multiple classes, and tests are given to a group, not a class.
 On top of
@@ -43,6 +43,14 @@ name describing the maximum grade and coefficient, such as "/10 - Coef : 0.5".
 Each test present on the website has a creation date and a "published" flag (on by default). Since those are not included in 
 the exported .csv file, the program cannot guess them accurately (the current date is used when creating tests). The user will
 thus need to use the website to set those correctly, for example when uploading multiple tests at once.
+
+### lvs_send_appreciations
+
+This program does essentially the same as lvs_send_grades, but for appreciations. The user can download the .csv file 
+from the website, edit column with the student's appreciations, then use the program to upload those to the website. If
+the upload would result in any deletion or overwriting, the program will give a warning with the name of affected students and
+ask for confirmation.
+
 
 ## Configuration file
 
@@ -74,4 +82,4 @@ Some of the text comes directly from the website and is thus possibly in French.
 
 #### Does the program store my password?
 No. The password stays in memory only. This is also true for the user name. You can add your password to the configuration 
-json file to save time, but this is not recommended and not done automatically. 
+json file to save time, but this is not recommended and not done automatically.

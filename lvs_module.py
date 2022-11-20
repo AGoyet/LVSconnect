@@ -15,7 +15,7 @@ import os, sys
 import datetime
 import os.path
 import re
-import time 
+import time
 import getpass
 import argparse
 import appdirs
@@ -25,7 +25,7 @@ config_fname= appname + "_config.json"
 
 # Will be read from config or input
 base_url= ''
-    
+
 urls={}
 
 def set_base_url(url):
@@ -38,7 +38,7 @@ def add_url(name, rel_url):
 
 def get_url(name):
     return base_url + urls[name]
-    
+
 # login
 add_url("login", '/login')
 add_url("connexion", '/vsn.main/WSAuth/connexion')
@@ -100,7 +100,7 @@ def update_config_file(config_dict):
             json.dump(config_dict, f, indent=2)
     except PermissionError as e:
         print(f"Warning: error writing config file {ffname}:\n  {e}")
-        
+
 ## We warp argparse to avoid duplicating code.
 
 # Passed each as parser.add_argument(*a, **ka)
@@ -190,7 +190,7 @@ def lvs_get_args(arg_descs=[], shared_args=[], description="", dont_process=[], 
             if args["csv_fname"]:
                 args["trimester"]= get_trimester_from_csv_fname(args["csv_fname"])
     return args
-        
+
 def open_session(user, password):
     if user is None:
         user= input("Username:\n")
@@ -369,7 +369,7 @@ def nicer_str(obj):
     else:
         strs= [str(obj)]
     return ", ".join(strs)
-    
+
 # Returns a str formated in the way used by the website
 def get_current_date_s():
     # Example: 2022-04-22T22:46:59.516Z
@@ -378,7 +378,7 @@ def get_current_date_s():
     # Now s is 2022-04-22T22:46:59.516123, need to cut last 3 microseconds digits and add Z:
     s= s[:-3]+"Z"
     return s
-    
+
 # returns a dict of group_name : service_id
 def get_services(json_groups):
     service_id_of_group_name= {}
@@ -387,7 +387,7 @@ def get_services(json_groups):
     return service_id_of_group_name
 
 def match_group_name_in_json(group_name, json_groups):
-    service_id_of_group_name= get_services(json_groups)    
+    service_id_of_group_name= get_services(json_groups)
     for group_name_web, service_id in service_id_of_group_name.items():
         if group_name_web.find(group_name.strip()) != -1 :
             return group_name_web, service_id
@@ -431,19 +431,19 @@ def guess_trimester_from_date(date_ymd= None):
     midsummer= datetime.date(d.year, 8, 1) # august first
     if d < midsummer:
         # If d is in 2022, this means school year is 2021-2022
-        t2_start= datetime.date(d.year - 1, 11, 20) # 20 of november 2021
-        t3_start= datetime.date(d.year, 2, 19)      # 19 of february 2022
+        t2_start= datetime.date(d.year - 1, 12, 1) # december 1, 2021
+        t3_start= datetime.date(d.year, 3, 1)      # march 1, 2022
     else:
         # If d is in 2022, this means school year is 2022-2023
-        t2_start= datetime.date(d.year, 11, 20)     # 20 of november 2022
-        t3_start= datetime.date(d.year + 1, 2, 19)  # 19 of february 2023
+        t2_start= datetime.date(d.year, 12, 1)     # december 1, 2022
+        t3_start= datetime.date(d.year + 1, 3, 1)  # march 1, 2023
     if   d < t2_start:
         return 1
     elif d < t3_start:
         return 2
     else:
         return 3
-        
+
 def get_grades(s, service_id, trimester):
     url= get_url("get_grades")
     payload='{"serviceId":0,"periodeId":0,"devoirId":null,"profId":0}'
@@ -515,13 +515,13 @@ def get_mess_dest_json(s, dest_search_s, dest_type= "student"):
     json_payload_dest_search['profils'][0]= dest_types[dest_type]
     r= s.post(get_url("dest"), json= json_payload_dest_search)
     r.raise_for_status()
-    json_dest_search_res= r.json()    
+    json_dest_search_res= r.json()
     if len(json_dest_search_res) < 1:
         raise Exception('No result for destinatory search "' + dest_search_s + '"')
     if len(json_dest_search_res) > 1:
         raise Exception('Multiple results for destinatory search "' + dest_search_s + '"')
     return json_dest_search_res[0]
-    
+
 # Website generates html from text in a very specific (and terrible) way.
 def convert_to_terrible_html_message(text_s):
     r= ''
@@ -559,7 +559,7 @@ def send_message(s, dest_search_s, message_subject, message_body, dest_type="stu
     else:
         print('Error: Message NOT sent successfully')
     return r
-        
+
 def pretty_print_inbox(json_inbox):
     # Reverse to display latest email at the bottom for easier testing.
     l= list(json_inbox['mails'])
@@ -574,7 +574,7 @@ def pretty_print_inbox(json_inbox):
         print(soup.text)
         print()
 
-def show_messages(s):        
+def show_messages(s):
     r= s.get(get_url("inbox"))
     r.raise_for_status()
     json_inbox= r.json()
@@ -597,7 +597,7 @@ def student_rows_of_csv_rows(rows):
             break
         student_rows.append(row)
     return student_rows
-    
+
 # Returns (error_flag, row_of_student_id). The second is a dict of student_id:row.
 def match_students_to_rows(s, csv_fname, json_grades= None, student_names_of_ids= None):
     row_of_student_id={}

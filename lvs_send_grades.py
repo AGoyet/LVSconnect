@@ -169,7 +169,7 @@ def grade_equality(g1, g2):
     except ValueError:
         # At leaset one is not a float, and they are not string equal
         return False
-    
+
 def send_grades(s, csv_fname, trimester, group_name,
                 create_tests= False, hidden= False,
                 ask_to_write= True, never_write= False,
@@ -282,7 +282,7 @@ def send_grades(s, csv_fname, trimester, group_name,
     # Actual uploading
     r= s.post(url, json= json_payload)
     r.raise_for_status()
-    
+
 def main():
     try:
         s= None

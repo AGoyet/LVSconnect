@@ -224,7 +224,7 @@ def convert_date_from_ymd(date_ymd):
     return re.sub(r"^(\d\d\d\d)-(\d\d)-(\d\d)$", r"\3/\2/\1", date_ymd)
 
 # Uses a combination of requests, CSV, and interactive user input to get params.
-# Returns classgroup_name, classgroup_id, student_names_to_check, grades_dict, test_date
+# Returns student_names_to_check, grades_dict, test_date, group_name, test_name
 # student_names_to_check and grades_dict are returned as None if do_all_students was True
 def collect_all_necessary_params(s, classgroups, group_name=None, test_name=None, csv_fname=None, do_all_students=False, trimester=None, test_date=None):
     student_names_to_check= None
@@ -294,7 +294,7 @@ def collect_all_necessary_params(s, classgroups, group_name=None, test_name=None
                 choice= input_Yn(f"Evaluation (test) date not provided. Guessed date {test_date} from website. Is this correct?")
                 if not choice:
                     test_date= input_date_dmy(prompt="Please input the date for which to check attendance.")
-    return student_names_to_check, grades_dict, test_date
+    return student_names_to_check, grades_dict, test_date, group_name, test_name
 
 # Returns (attendance_dict, students_not_found, test_date)
 # attendance_dict is a dict of date_DD/MM/YYYY : dict of student_name : motive_list
@@ -316,11 +316,14 @@ def get_attendances(s, classgroups, student_names_to_check):
         print(f"Warning: The following students were not on the attendance lists: {nicer_str(students_not_found)}")
     return (attendance_dict, students_not_found)
 
-def output_attendance_sub(attendance_dict, test_date,
+def output_attendance_sub(attendance_dict, test_date, group_name, test_name,
                           students_not_found=None,
                           student_names_to_check=None,
                           grades_dict=None):
-    output_s= f"**** Absences le {test_date}:\n\n"
+    test_name_output= ""
+    if test_name:
+        test_name_output= ", " + test_name
+    output_s= f"**** {test_date} ({group_name}{test_name_output}):\n\n"
     indent= 4
     indent_s= " "*indent
     if not test_date in attendance_dict:
@@ -351,12 +354,12 @@ def output_attendance_sub(attendance_dict, test_date,
                 output_s+= indent_s + "Pas de calendrier d'absences pour cet élève\n"
     return output_s
 
-def output_attendance(attendance_dict, test_date,
+def output_attendance(attendance_dict, test_date, group_name, test_name,
                       students_not_found=None,
                       student_names_to_check=None,
                       grades_dict=None,
                       output_file=None):
-    output_s= output_attendance_sub(attendance_dict, test_date,
+    output_s= output_attendance_sub(attendance_dict, test_date, group_name, test_name,
                                     students_not_found= students_not_found,
                                     student_names_to_check=student_names_to_check,
                                     grades_dict=grades_dict)
@@ -408,9 +411,9 @@ def main():
                                              do_all_students= args["do_all_students"],
                                              trimester= args["trimester"],
                                              test_date= args["test_date"])
-        student_names_to_check, grades_dict, test_date= params
+        student_names_to_check, grades_dict, test_date, group_name, test_name = params
         attendance_dict, students_not_found= get_attendances(s, classgroups, student_names_to_check)
-        output_attendance(attendance_dict, test_date,
+        output_attendance(attendance_dict, test_date, group_name, test_name,
                           students_not_found=students_not_found,
                           output_file= args["output_file"],
                           student_names_to_check=student_names_to_check,

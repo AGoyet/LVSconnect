@@ -1,18 +1,24 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 '''
-This .spec file creates multiple executables in a single directory, so that they all share the same libraries and files.
+This .spec file creates multiple executables in a single directory, so
+that they all share the same libraries and files.
 
-The variables project_name will be used for that single directory; the names in sub_names should each have a .spec file in the current directory (created beforehand with the pyi-makespec program).
+The variable project_name will be used for that single directory; the
+names in sub_names should each have a .spec file in the current
+directory (created beforehand with the pyi-makespec program).
 
-It works by running all sub .spec files, but intercepting the COLLECT function. After that, a single COLLECT call is made using all the args for the intercepted calls.
+It works by running all sub .spec files, but intercepting the COLLECT
+function. After that, a single COLLECT call is made using all the args
+for the intercepted calls.
 
-This is a generalisation of the method described in https://www.zacoding.com/en/post/pyinstaller-create-multiple-executables.
+This is a generalisation of the method described in
+https://www.zacoding.com/en/post/pyinstaller-create-multiple-executables.
 '''
 
 # Customize this
 project_name= "LVSconnect"
-sub_names= ["lvs_attendance", "lvs_send_grades"]
+sub_names= ["lvs_attendance", "lvs_send_grades", "lvs_send_appreciations"]
 
 
 block_cipher = None
