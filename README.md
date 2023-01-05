@@ -26,6 +26,10 @@ that the program filters out the students who have a numeric non zero grade for 
 
 The user can also choose to check the attendance for a whole group for a given date, irrespective of tests (this is useful for a test which is not uploaded to the website yet).
 
+### lvs_find_free_room
+
+This program downloads the time schedule for each room then displays the ones which are free at a given date and time. Without any arguments, it asks for date and time.
+
 ### lvs_send_grades
 
 This program does the reverse of the "export" function on the website. The user should first use that function to get a .csv
