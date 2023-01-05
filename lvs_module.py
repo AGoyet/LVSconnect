@@ -183,11 +183,11 @@ def lvs_get_args(arg_descs=[], shared_args=[], description="", dont_process=[], 
                     args["csv_fname"]= None
     if should_process("group"):
         if args["group_name"] is None:
-            if args["csv_fname"]:
+            if args.get("csv_fname"):
                 args["group_name"]= get_group_name_from_csv(args["csv_fname"])
     if should_process("trimester"):
         if args["trimester"] is None:
-            if args["csv_fname"]:
+            if args.get("csv_fname"):
                 args["trimester"]= get_trimester_from_csv_fname(args["csv_fname"])
     return args
 

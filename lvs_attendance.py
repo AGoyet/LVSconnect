@@ -299,7 +299,6 @@ def collect_all_necessary_params(s, classgroups, group_name=None, test_name=None
 # Returns (attendance_dict, students_not_found, test_date)
 # attendance_dict is a dict of date_DD/MM/YYYY : dict of student_name : motive_list
 # students_not_found is a set of student names
-# test_date is returned because of the arg processing 
 def get_attendances(s, classgroups, student_names_to_check):
     attendance_dict= {}
     students_not_found= []

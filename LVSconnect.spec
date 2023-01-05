@@ -18,7 +18,7 @@ https://www.zacoding.com/en/post/pyinstaller-create-multiple-executables.
 
 # Customize this
 project_name= "LVSconnect"
-sub_names= ["lvs_attendance", "lvs_send_grades", "lvs_send_appreciations"]
+sub_names= ["lvs_attendance", "lvs_find_free_room", "lvs_send_grades", "lvs_send_appreciations"]
 
 
 block_cipher = None
