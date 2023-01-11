@@ -200,8 +200,11 @@ def open_session(user, password):
     json_payload["externalentpersjointure"]= None
     json_payload["login"]= user
     json_payload["password"]= password
-    s= requests.Session()
-    r= s.post(get_url("connexion"), json= json_payload)
+    try:
+        s= requests.Session()
+        r= s.post(get_url("connexion"), json= json_payload)
+    except Exception as e:
+        raise RuntimeError(f"Connexion error: \n{e}")
     r.raise_for_status()
     json_response= json.loads(r.text)
     if not "auth" in json_response:

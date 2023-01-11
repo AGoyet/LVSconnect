@@ -115,7 +115,7 @@ def get_test_id_and_create_tests(s, service_id, trimester, json_grades, test_des
     if tests_not_in_csv:
         print(f"WARNING: {len(tests_not_in_csv)} test(s) are present on the website but not in the csv file: {', '.join(tests_not_in_csv)}")
     if tests_not_in_website:
-        print(f"Found {len(tests_not_in_website)} test(s) not present on the website: {', '}.join(tests_not_in_website)")
+        print(f"Found {len(tests_not_in_website)} test(s) not present on the website: {', '.join(tests_not_in_website)}")
         if create_tests:
             first_it= True
             for test_name in tests_not_in_website:
