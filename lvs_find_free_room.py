@@ -10,7 +10,7 @@ from lvs_module import *
 
 import datetime
 from bs4 import BeautifulSoup
-
+import pickle
 
 add_url("room", "/vsn.main/temps/salle")
 add_url("select_date", "/vsn.main/temps/semaineDate")
@@ -39,15 +39,19 @@ def get_time_schedule(s, room_id):
     r= s.post(url, params=params)
     r.raise_for_status()
     soup= BeautifulSoup(r.text, 'html.parser')
-    date_regex= r'Cours du \w+ (\d{2})'
+    date_regex= r'Cours du \w+ (\d{2}) (\w+) (\d{4})'
+    month_list= ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre"]
     time_range_regex= r'de (\d\d)h(\d\d) à (\d\d)h(\d\d)'
     classes= soup.find_all("div", id="infosCoursEleve")
     schedule_list= []
     for c in classes:
         gs= re.search(date_regex, c.text).groups()
-        if len(gs) != 1:
+        if len(gs) != 3:
             continue
-        date= int(gs[0]) # regex gives two digits
+        day= int(gs[0]) # regex gives two digits
+        month= 1 + month_list.index(gs[1])
+        year= int(gs[2])
+        date_tuple= day,month,year
         gs= re.search(time_range_regex, c.text).groups()
         if len(gs) != 4:
             continue
@@ -56,9 +60,10 @@ def get_time_schedule(s, room_id):
         if not (start_time and end_time):
             continue
         slot= (start_time, end_time)
-        schedule_list.append((date, slot))
+        schedule_list.append((date_tuple, slot))
     return schedule_list
 
+# time_slots is a dict of day : { slot : room_name_list }
 def get_all_time_slots(s, rooms, excluded=set()):
     # Get time schedule for each room
     time_slots= {}
@@ -67,16 +72,18 @@ def get_all_time_slots(s, rooms, excluded=set()):
     for (room_name, room_id) in rooms.items():
         if room_name in excluded:
             continue
-        print(room_name)
+        print(room_name, end=" ")
         schedule_list= get_time_schedule(s, room_id)
         if not schedule_list:
             always_free.add(room_name)
-        for (day, slot) in schedule_list:
-            if not day in time_slots:
-                time_slots[day]= {}
-            if not slot in time_slots[day]:
-                time_slots[day][slot]= set()
-            time_slots[day][slot].add(room_name)
+        for (date_tuple, slot) in schedule_list:
+            if not date_tuple in time_slots:
+                time_slots[date_tuple]= {}
+            if not slot in time_slots[date_tuple]:
+                time_slots[date_tuple][slot]= set()
+            time_slots[date_tuple][slot].add(room_name)
+    print()
+    always_free= list(always_free)    
     return time_slots, always_free
 
 # Operations on time tuples ("tt") and slots.
@@ -106,7 +113,8 @@ def overlap(slot1, slot2):
     else:
         return slot1[0] < slot2[1]
 
-def request_date_change(s, year, month, day):
+def request_date_change(s, date_tuple):
+    day, month, year= date_tuple
     url= get_url("select_date")
     params= {"dateSemaine" : f"{day:02d}/{month:02d}/{year}"}
     r= s.post(url, params=params)
@@ -120,8 +128,8 @@ def request_date_change(s, year, month, day):
 def guess_base_time_slots(time_slots):
     # Get all existing slots for all days
     all_slots= set()
-    for day in time_slots:
-        for slot in time_slots[day]:
+    for date_tuple in time_slots:
+        for slot in time_slots[date_tuple]:
             all_slots.add(slot)
     # Get start and end (sorted)
     start_times= list({ slot[0] for slot in all_slots})
@@ -150,30 +158,30 @@ def guess_base_time_slots(time_slots):
 
 # Returns a free room set
 # Defaults to a 21m duration (should avoid any recess time slots of <= 20m)
-def find_free_rooms_sub(time_slots, rooms, day, start_tt, duration=21):
+def find_free_rooms_sub(time_slots, rooms, date_tuple, start_tt, duration=21):
     duration= max(0, int(duration))
-    assert day in time_slots
+    assert date_tuple in time_slots
     end_tt= add_tt(start_tt, (0, duration))
     requested_slot= (start_tt, end_tt)
     # Get all time slots that overlap the requested slot
     relevant_slots= set();
-    for slot in time_slots[day].keys():
+    for slot in time_slots[date_tuple].keys():
         if overlap(slot, requested_slot):
             relevant_slots.add(slot)
     # Get all free rooms at that slot (by elimination)
     free_rooms= set(rooms.keys())
     for slot in relevant_slots:
-        free_rooms -= set(time_slots[day][slot])
+        free_rooms -= set(time_slots[date_tuple][slot])
     return free_rooms
 
 # Returns a dict of start_tt : free room set
 # The max_delay is how patient the user is (in minutes).
-def find_free_rooms(time_slots, rooms, day, start_tt, excluded=set(), duration=21, max_delay=30):
+def find_free_rooms(time_slots, rooms, date_tuple, start_tt, excluded=set(), duration=21, max_delay=30):
     # Get possible starting times when the room we are looking for is free (from now to delay).
     possible_starts= {start_tt}
     last_start_tt= add_tt(start_tt, (0, max_delay))
     # Get those that will soon be free (looking at time slots that end soon and might free a room).
-    for slot in time_slots[day]:
+    for slot in time_slots[date_tuple]:
         slot_end= slot[1]
         if start_tt < slot_end < last_start_tt:
             possible_starts.add(slot_end)
@@ -182,7 +190,7 @@ def find_free_rooms(time_slots, rooms, day, start_tt, excluded=set(), duration=2
     # Find rooms starting at those possible times
     free_rooms_by_start= {}
     for tt in possible_starts:
-        free_rooms_by_start[tt]= find_free_rooms_sub(time_slots, rooms, day, tt, duration=duration)
+        free_rooms_by_start[tt]= find_free_rooms_sub(time_slots, rooms, date_tuple, tt, duration=duration)
     # Return a pruned version that skips the rooms already free at the previous time
     # (of the unpruned version, to still show rooms that are occupied then free again)
     pruned= {}
@@ -197,14 +205,11 @@ def find_free_rooms(time_slots, rooms, day, start_tt, excluded=set(), duration=2
 
 # Returns a string with, the longest free slot for each room around the start time.
 # Goes through each start time in order.
-def s_of_free_rooms(free_rooms_by_start, room_schedule, whole_day, always_free=set(), start_is_now= True):
+def s_of_free_rooms(free_rooms_by_start, room_schedule, whole_day, always_free=[]):
     r= ""
     first_it= True
     for start_tt in free_rooms_by_start:
         start_s= f"at {s_of_tt(start_tt)}"
-        if first_it:
-            if start_is_now:
-                start_s= f"now ({s_of_tt(start_tt)})"
         if first_it:
             r+= f"Rooms free {start_s}:\n"
             first_it= False
@@ -236,28 +241,70 @@ def s_of_free_rooms(free_rooms_by_start, room_schedule, whole_day, always_free=s
         r+= "\n".join(always_free)
     return r
 
-def find_and_display_free_rooms(s, year, month, day, start_tt,
-                                excluded=set(), duration=21, max_delay=30, start_is_now= True):
-    ## Do the requests
-    # This means that year, month and day are ignored if start_is_now is True
-    if not start_is_now:
-        request_date_change(s, year, month, day)
-    rooms= get_room_ids(s)
-    time_slots, always_free= get_all_time_slots(s, rooms, excluded=excluded)
-    # Find free rooms (using downloaded data)
+def save_time_slots(fname, time_slots, always_free, update_times, rooms):
+    curr_d= datetime.datetime.now()
+    curr_d_str= curr_d.strftime("%d/%m/%Y, %H:%M")
+    for d in time_slots.keys():
+        if not d in update_times:
+            update_times[d]= curr_d_str
+    data= {"time_slots":time_slots, "always_free":always_free, "update_times":update_times, "rooms":rooms}
+    print(f"Writing data to file {fname}")
+    with open(fname, 'wb') as f:
+        pickle.dump(data, f)
+
+# Updates the dicts.
+def load_time_slots(fname, time_slots, always_free, update_times, rooms):
+    print(f"Loading data from {fname}")
+    try:
+        with open(fname,'rb') as f:
+            data= pickle.load(f)
+        a,b,c,d= data["time_slots"], data["always_free"], data["update_times"], data["rooms"]
+    except (KeyError, TypeError, pickle.UnpicklingError):
+        raise RuntimeError(f"Error load data from file {fname}. This file must be empty or contain data created by this program.")
+    time_slots.update(a)
+    update_times.update(c)
+    rooms.update(d)
+    for room in b:
+        always_free.remove(room)
+
+# Returns result as text
+def find_and_display_free_rooms(s, date_tuple, start_tt,
+                                excluded=set(), duration=21, max_delay=30,
+                                load_file=None, save_file=None):
+    time_slots, always_free, update_times, rooms= {}, [], {}, {}
+    if save_file and os.path.isfile(save_file):
+        load_time_slots(save_file, time_slots, always_free, update_times, rooms)
+    # Potentially update save file with load file (without checking update times; TODO?)
+    if load_file:
+        load_time_slots(load_file, time_slots, always_free, update_times, rooms)
+    else:
+        # Do the requests
+        request_date_change(s, date_tuple)
+        rooms= get_room_ids(s)
+        a,b= get_all_time_slots(s, rooms, excluded=excluded)
+        time_slots.update(a)
+        always_free= list( set(always_free) - set(b))
+    if save_file:
+        save_time_slots(save_file, time_slots, always_free, update_times, rooms)
+        return ""
+    if not date_tuple in time_slots:
+        print(date_tuple)
+        print(time_slots.keys())
+        return "No schedule for the given date in the cached data."
+    # Find free rooms (using data)
     excluded_from_search= excluded.copy()
     excluded_from_search.update(always_free)
-    free_rooms_by_start= find_free_rooms(time_slots, rooms, day, start_tt,
+    free_rooms_by_start= find_free_rooms(time_slots, rooms, date_tuple, start_tt,
                                         excluded=excluded_from_search,
                                         duration=duration, max_delay=max_delay)
     # Reorganize the time slots by room (could have been computed at the same time as time_slots).
-    room_schedules_days= {}
+    room_schedules= {}
     for d in time_slots:
-        room_schedules_days[d]= {}
+        room_schedules[d]= {}
         for room_name in rooms:
             schedule= [ slot for slot in time_slots[d] if room_name in time_slots[d][slot] ]
             schedule.sort()
-            room_schedules_days[d][room_name]= schedule
+            room_schedules[d][room_name]= schedule
     # Get First and last possible times of day (for the whole week)
     all_slots= set()
     for d in time_slots:
@@ -265,9 +312,13 @@ def find_and_display_free_rooms(s, year, month, day, start_tt,
             all_slots.add(slot)
     whole_day= (min([slot[0] for slot in all_slots]), max([slot[1] for slot in all_slots]))
     # Display result
-    result_s= s_of_free_rooms(free_rooms_by_start, room_schedules_days[day], whole_day,
-                              always_free=always_free, start_is_now=start_is_now)
-    print(result_s)
+    result_s= ""
+    if date_tuple in update_times:
+        result_s= f"The data for this date was downloaded on {update_times[date_tuple]}.\nIf the time schedule has been modified since then it might be incorrect.\n"
+    result_s+= s_of_free_rooms(free_rooms_by_start, room_schedules[date_tuple], whole_day,
+                              always_free=always_free)
+    result_s+= "\n"
+    return result_s
 
 def tuple_of_date_dmy(date_s):
     date_dmy_regex= r'(\d{1,2})/(\d{1,2})/(\d{1,4})'
@@ -317,66 +368,66 @@ def main():
             (('--excluded-rooms',), {'type':str, 'nargs':'*', 'metavar':'ROOM',
                                'help':'A list of names of rooms to exclude from the search, separated by spaces.'}),
             (('--duration',), {'type':int, 'default':21, 'help':'How long the room is needed in minutes. Low values might lead to include recess time. Default is 21.'}),
-            (('--max-delay',), {'type':int, 'default':30, 'help':'The program displays additional rooms after those that are free now. This sets the maximum amount of time (in minutes) to look for those rooms. Default is 30.'})
+            (('--max-delay',), {'type':int, 'default':30, 'help':'The program displays additional rooms after those that are free now. This sets the maximum amount of time (in minutes) to look for those rooms. Default is 30.'}),
+            (('--output',), {'metavar':'FILE', 'type':str, 'help':'Write the final result at the end of the given file.'}),
+            (('--load',), {'metavar':'FILE', 'type':str, 'help':'Load data from the given file instead of downloading from the website.'}),
+            (('--save',), {'metavar':'FILE', 'type':str, 'help':'Save the data downloaded from the website to the given file then exit. If the file already exists, it will be updated.'}),
         ]
         shared_args=[]
+        
         args= lvs_get_args(arg_descs=arg_descs, shared_args= shared_args, description='Downloads the time schedule for each room then displays the ones which are free at a given date and time. Without any arguments, asks for date and time.')
-        start_is_now= True  # Will stay True only if we guessed the current date and time
         start_tt= None
-        def all_None(args, names):
-            for name in names:
-                if name in args and (not args[name] is None):
-                    return False
-            return True
+        date_tuple= None
+        curr_d= datetime.datetime.now()
         if args["now"]:
             args["date"]= None
             args["time"]= None
-        if (not args["now"]) and all_None(args, ["date","time"]):
+        elif (not args["now"]) and (args["date"] is None) and (args["time"] is None):
             choice= input_Yn(prompt="Use the current date and time?")
             if not choice:
                 # Ask for date
                 args["date"]= input_date_dmy(prompt="Enter the date for which to check for free rooms.")
                 # Ask for time
-                args["time"]= input_time_hhmm()
+                Args["time"]= input_time_hhmm()
         if args["date"]:
             date_tuple= tuple_of_date_dmy(args["date"])
             if not date_tuple:
                 raise RuntimeError(f"Invalid format for date string (should be DD/MM/YYYY): {args['date']}")
-            args["day"], args["month"], args["year"]= date_tuple
-            if args["year"] < 100:
-                args["year"]+= 2000 #Y3K
-            start_is_now= False
+            if date_tuple[2] < 100:
+                date_tuple[2]+= 2000 #Y2.1K
+        if not date_tuple:
+            date_tuple= (curr_d.day, curr_d.month, curr_d.year)
+            print(f"Using current date {date_tuple[0]}/{date_tuple[1]}/{date_tuple[2]}")
         if args["time"]:
             start_tt= tuple_of_time_hhmm(args["time"])
             if not start_tt:
                 raise RuntimeError(f"Invalid format for time string (should be HH:MM): {args['time']}")
-            start_is_now= False
-        d= datetime.datetime.now()
         if not start_tt:
-            start_tt= (d.hour, d.minute)
+            start_tt= (curr_d.hour, curr_d.minute)
             print(f"Using current time {s_of_tt(start_tt)}")
-        def set_if_None(args, defaults):
-            for k,v in defaults.items():
-                if not k in args or args[k] is None:
-                    args[k]= v
-        if not all_None(args, ["day", "month", "year"]):
-            start_is_now= False
-        set_if_None(args, {"day":d.day,
-                           "month":d.month,
-                           "year":d.year})
         excluded= set()
         if args["excluded_rooms"]:
             excluded= set(args["excluded_rooms"])
         # Done processing args
-        s= open_session(args["user"], args["password"])
-        find_and_display_free_rooms(s, args["year"], args["month"], args["day"], start_tt,
+        s= None
+        if not args["load"]:
+            s= open_session(args["user"], args["password"])
+            
+        result_s= find_and_display_free_rooms(s, date_tuple, start_tt,
                                     excluded=excluded, duration=args["duration"],
-                                    max_delay=args["max_delay"], start_is_now=start_is_now)
-        show_message("Done.")
+                                    max_delay=args["max_delay"],
+                                    load_file= args["load"], save_file= args["save"])
+        print(result_s)
+        output_file= args["output"]        
+        if output_file and result_s:
+            print(f"Writing output to {output_file}")
+            with open(output_file, 'a') as f:
+                f.write(result_s)
     finally:
         if s is not None:
             s.close()
 
 if __name__ == '__main__' :
     display_errors(main)
+    show_message("Done.")
 

@@ -171,10 +171,10 @@ def main():
         send_apprs(s, args["csv_fname"], args["trimester"], args["group_name"],
                    ask_to_write= args["ask_to_write"], never_write= args["never_write"],
                    ask_to_delete= args["ask_to_delete"], never_delete= args["never_delete"])
-        show_message("Done.")
     finally:
         if s is not None:
             s.close()
 
 if __name__ == '__main__' :
     display_errors(main)
+    show_message("Done.")

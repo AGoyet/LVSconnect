@@ -417,10 +417,10 @@ def main():
                           output_file= args["output_file"],
                           student_names_to_check=student_names_to_check,
                           grades_dict= grades_dict)
-        print("Done.")
     finally:
         if s is not None:
             s.close()
         
 if __name__ == '__main__' :
     display_errors(main)
+    show_message("Done.")

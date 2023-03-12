@@ -658,5 +658,5 @@ def display_errors(f):
         print("Error:", str(e))
         return
     except requests.RequestException as e:
-        print("Error with request: ", e.response.text)
+        print("Error with request:", e.response.text)
         return
