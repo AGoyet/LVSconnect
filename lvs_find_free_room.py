@@ -228,6 +228,11 @@ def s_of_free_rooms(free_rooms_by_start, room_schedule, whole_day, always_free=[
                 if free_end >= slot[0] >= start_tt:
                     free_end = slot[0]
             free_slot_rooms.append(((free_start, free_end), room_name))
+        # Multiple sorts to make it a total order
+        # Sort alphabetically first (least important)
+        free_slot_rooms.sort(key= lambda p : p[1])
+        # Then by start time
+        free_slot_rooms.sort(key= lambda p : p[0][0])
         # Sort with latest end_time in first place (most time left from now)
         free_slot_rooms.sort(reverse= True, key= lambda p : p[0][1])
         char_nb= max([len(room_name) for slot, room_name in free_slot_rooms])
