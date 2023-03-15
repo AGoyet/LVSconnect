@@ -72,7 +72,8 @@ def get_all_time_slots(s, rooms, excluded=set()):
     for (room_name, room_id) in rooms.items():
         if room_name in excluded:
             continue
-        print(room_name, end=" ")
+        # flush=True to use this output as a kind of progress bar.
+        print(room_name, end=" ", flush=True)
         schedule_list= get_time_schedule(s, room_id)
         if not schedule_list:
             always_free.add(room_name)
@@ -82,6 +83,7 @@ def get_all_time_slots(s, rooms, excluded=set()):
             if not slot in time_slots[date_tuple]:
                 time_slots[date_tuple][slot]= set()
             time_slots[date_tuple][slot].add(room_name)
+    # Empty line
     print()
     always_free= list(always_free)    
     return time_slots, always_free
@@ -208,7 +210,7 @@ def find_free_rooms(time_slots, rooms, date_tuple, start_tt, excluded=set(), dur
 
 # Returns a string with, the longest free slot for each room around the start time.
 # Goes through each start time in order.
-def s_of_free_rooms(free_rooms_by_start, date_tuple, room_schedule, whole_day, always_free=[]):
+def s_of_free_rooms(free_rooms_by_start, date_tuple, room_schedule, whole_day, are_all_free, always_free=[]):
     r= ""
     first_it= True
     for start_tt in free_rooms_by_start:
@@ -231,6 +233,8 @@ def s_of_free_rooms(free_rooms_by_start, date_tuple, room_schedule, whole_day, a
                 if free_end >= slot[0] >= start_tt:
                     free_end = slot[0]
             free_slot_rooms.append(((free_start, free_end), room_name))
+        if are_all_free:
+            r+= "(All rooms are free at that time.)\n"
         # Multiple sorts to make it a total order
         # Sort alphabetically first (least important)
         free_slot_rooms.sort(key= lambda p : p[1])
@@ -305,6 +309,8 @@ def find_and_display_free_rooms(s, date_tuple, start_tt,
     free_rooms_by_start= find_free_rooms(time_slots, rooms, date_tuple, start_tt,
                                         excluded=excluded_from_search,
                                         duration=duration, max_delay=max_delay)
+    nb_free_rooms= sum([len(free_rooms_by_start[k]) for k in free_rooms_by_start])
+    are_all_free= nb_free_rooms + len(excluded_from_search) == len(rooms)
     # Reorganize the time slots by room (could have been computed at the same time as time_slots).
     room_schedules= {}
     for d in time_slots:
@@ -322,7 +328,7 @@ def find_and_display_free_rooms(s, date_tuple, start_tt,
     # Display result
     result_s= ""
     result_s+= s_of_free_rooms(free_rooms_by_start, date_tuple, room_schedules[date_tuple], whole_day,
-                              always_free=always_free)
+                               are_all_free, always_free=always_free)
     result_s+= "\n"
     if date_tuple in update_times:
         result_s+= f"The data for this date was downloaded on {update_times[date_tuple]}.\nIf the time schedule has been modified since, it might be incorrect.\n"
