@@ -86,6 +86,9 @@ def get_all_time_slots(s, rooms, excluded=set()):
     always_free= list(always_free)    
     return time_slots, always_free
 
+def s_of_date_tuple(date_tuple):
+    return f"{date_tuple[0]}/{date_tuple[1]}/{date_tuple[2]}"
+
 # Operations on time tuples ("tt") and slots.
 # The built-in comparison operations on tuples are used extensively.
 def s_of_tt(tt):
@@ -205,13 +208,13 @@ def find_free_rooms(time_slots, rooms, date_tuple, start_tt, excluded=set(), dur
 
 # Returns a string with, the longest free slot for each room around the start time.
 # Goes through each start time in order.
-def s_of_free_rooms(free_rooms_by_start, room_schedule, whole_day, always_free=[]):
+def s_of_free_rooms(free_rooms_by_start, date_tuple, room_schedule, whole_day, always_free=[]):
     r= ""
     first_it= True
     for start_tt in free_rooms_by_start:
-        start_s= f"at {s_of_tt(start_tt)}"
+        start_s= f"on {s_of_date_tuple(date_tuple)} at {s_of_tt(start_tt)}"
         if first_it:
-            r+= f"Rooms free {start_s}:\n"
+            r+= f"Rooms that are empty {start_s}:\n"
             first_it= False
         else:
             r+= f"\nAdditional rooms free {start_s}:\n"
@@ -295,7 +298,7 @@ def find_and_display_free_rooms(s, date_tuple, start_tt,
     if not date_tuple in time_slots:
         print(date_tuple)
         print(time_slots.keys())
-        return "No schedule for the given date in the cached data."
+        return "No data for that date in the cache."
     # Find free rooms (using data)
     excluded_from_search= excluded.copy()
     excluded_from_search.update(always_free)
@@ -318,11 +321,11 @@ def find_and_display_free_rooms(s, date_tuple, start_tt,
     whole_day= (min([slot[0] for slot in all_slots]), max([slot[1] for slot in all_slots]))
     # Display result
     result_s= ""
-    if date_tuple in update_times:
-        result_s= f"The data for this date was downloaded on {update_times[date_tuple]}.\nIf the time schedule has been modified since then it might be incorrect.\n"
-    result_s+= s_of_free_rooms(free_rooms_by_start, room_schedules[date_tuple], whole_day,
+    result_s+= s_of_free_rooms(free_rooms_by_start, date_tuple, room_schedules[date_tuple], whole_day,
                               always_free=always_free)
     result_s+= "\n"
+    if date_tuple in update_times:
+        result_s+= f"The data for this date was downloaded on {update_times[date_tuple]}.\nIf the time schedule has been modified since, it might be incorrect.\n"
     return result_s
 
 def tuple_of_date_dmy(date_s):
@@ -402,7 +405,7 @@ def main():
                 date_tuple[2]+= 2000 #Y2.1K
         if not date_tuple:
             date_tuple= (curr_d.day, curr_d.month, curr_d.year)
-            print(f"Using current date {date_tuple[0]}/{date_tuple[1]}/{date_tuple[2]}")
+            print(f"Using current date {s_of_date_tuple(date_tuple)}")
         if args["time"]:
             start_tt= tuple_of_time_hhmm(args["time"])
             if not start_tt:
