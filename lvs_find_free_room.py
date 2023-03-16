@@ -89,7 +89,7 @@ def get_all_time_slots(s, rooms, excluded=set()):
     return time_slots, always_free
 
 def s_of_date_tuple(date_tuple):
-    return f"{date_tuple[0]}/{date_tuple[1]}/{date_tuple[2]}"
+    return f"{date_tuple[0]:02d}/{date_tuple[1]:02d}/{date_tuple[2]}"
 
 # Operations on time tuples ("tt") and slots.
 # The built-in comparison operations on tuples are used extensively.
@@ -216,10 +216,10 @@ def s_of_free_rooms(free_rooms_by_start, date_tuple, room_schedule, whole_day, a
     for start_tt in free_rooms_by_start:
         start_s= f"on {s_of_date_tuple(date_tuple)} at {s_of_tt(start_tt)}"
         if first_it:
-            r+= f"Rooms that are empty {start_s}:\n"
+            r+= f"Rooms free {start_s}:\n"
             first_it= False
         else:
-            r+= f"\nAdditional rooms free {start_s}:\n"
+            r+= f"\nRooms soon free {start_s}:\n"
         free_slot_rooms= []
         for room_name in free_rooms_by_start[start_tt]:
             # Maximal free time slot
@@ -255,7 +255,7 @@ def s_of_free_rooms(free_rooms_by_start, date_tuple, room_schedule, whole_day, a
 
 def save_time_slots(fname, time_slots, always_free, update_times, rooms):
     curr_d= datetime.datetime.now()
-    curr_d_str= curr_d.strftime("%d/%m/%Y, %H:%M")
+    curr_d_str= curr_d.strftime("%d/%m/%Y at %H:%M")
     for d in time_slots.keys():
         if not d in update_times:
             update_times[d]= curr_d_str
