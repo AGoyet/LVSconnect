@@ -219,7 +219,7 @@ def s_of_free_rooms(free_rooms_by_start, date_tuple, room_schedule, whole_day, a
             r+= f"Rooms free {start_s}:\n"
             first_it= False
         else:
-            r+= f"\nRooms soon free {start_s}:\n"
+            r+= f"\nRooms (soon) free {start_s}:\n"
         free_slot_rooms= []
         for room_name in free_rooms_by_start[start_tt]:
             # Maximal free time slot
@@ -293,9 +293,13 @@ def find_and_display_free_rooms(s, date_tuple, start_tt,
         # Do the requests
         request_date_change(s, date_tuple)
         rooms= get_room_ids(s)
-        a,b= get_all_time_slots(s, rooms, excluded=excluded)
-        time_slots.update(a)
-        always_free= list( set(always_free) - set(b))
+        new_time_slots, new_always_free= get_all_time_slots(s, rooms, excluded=excluded)
+        for d in new_time_slots:
+            # The absence of a date in update_times represents the fact that it has been updated in
+            # the current execution (so the warning for cached data will not trigger).
+            update_times.pop(d, None)
+        time_slots.update(new_time_slots)
+        always_free= list( set(always_free) - set(new_always_free))
     if save_file:
         save_time_slots(save_file, time_slots, always_free, update_times, rooms)
         return ""
