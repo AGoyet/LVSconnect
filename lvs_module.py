@@ -165,7 +165,7 @@ def lvs_get_args(arg_descs=[], shared_args=[], description="", dont_process=[], 
             args["base_url"]= url
         url= args["base_url"]
         url=url.strip()
-        if url[-1] == "/":
+        if len(url) >= 1 and url[-1] == "/":
             url= url[:-1]
         print("Using base url " + url)
         if not "base_url" in config_dict:

@@ -96,8 +96,20 @@ def s_of_date_tuple(date_tuple):
 def s_of_tt(tt):
     return f"{tt[0]:02d}h{tt[1]:02d}"
 
-def s_of_slot(slot):
-    return f"{s_of_tt(slot[0])} to {s_of_tt(slot[1])}"
+def s_of_slot(slot, whole_day=(None, None)):
+    s= [s_of_tt(tt) for tt in slot]
+    if slot[1] == whole_day[1]:
+        s[1]+= "+"
+    else:
+        s[1]+= " "
+    s[0]+= " "
+    na_time_s= "  -   " # N/A. Same length as "HHhMM+"
+    if slot[0] == slot[1]:
+        if slot[1] == whole_day[1]:
+            s= [s[0], na_time_s]
+        elif slot[0] == whole_day[0]:
+            s= [na_time_s, s[1]]
+    return f"{s[0]} to  {s[1]}"
 
 def add_tt(tt1, tt2):
     h1, m1= tt1
@@ -244,10 +256,7 @@ def s_of_free_rooms(free_rooms_by_start, date_tuple, room_schedule, whole_day, a
         free_slot_rooms.sort(reverse= True, key= lambda p : p[0][1])
         char_nb= max([len(room_name) for slot, room_name in free_slot_rooms])
         for slot, room_name in free_slot_rooms:
-            end_of_day_s= ""
-            if slot[1] == whole_day[1]:
-                end_of_day_s= "+"
-            r+= f"{room_name.ljust(char_nb)}   {s_of_slot(slot)}{end_of_day_s}\n"
+            r+= f"{room_name.ljust(char_nb)}   {s_of_slot(slot, whole_day)}\n"
     if always_free:
         r+= "\nRooms with no schedule for the week:\n"
         r+= "\n".join(always_free)
@@ -304,9 +313,7 @@ def find_and_display_free_rooms(s, date_tuple, start_tt,
         save_time_slots(save_file, time_slots, always_free, update_times, rooms)
         return ""
     if not date_tuple in time_slots:
-        print(date_tuple)
-        print(time_slots.keys())
-        return "No data for that date in the cache."
+        return "No schedule for that date in the cache.\n(This could mean the building is closed that day, or that the date is too far in the past/future)"
     # Find free rooms (using data)
     excluded_from_search= excluded.copy()
     excluded_from_search.update(always_free)
