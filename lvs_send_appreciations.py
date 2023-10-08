@@ -62,9 +62,9 @@ def send_apprs(s, csv_fname, trimester, group_name,
     json_payload_template= json.loads(payload)
     json_payload_template["periodeId"]= trimester
     json_payload_template["serviceId"]= service_id
-    student_lastnames= get_student_lastnames_of_ids(json_grades)
+    student_names= get_student_names_of_ids(json_grades)
     def students_preview(student_ids):
-        names= [student_lastnames[sid] for sid in student_ids]
+        names= [student_names[sid] for sid in student_ids]
         if len(names) > 4:
             names= names[:4] + ["..."]
         return "For student(s): "+", ".join(names)
@@ -167,13 +167,13 @@ def main():
         else:
             args["ask_to_delete"]= False
             args["never_delete"]= not args["delete"]
-        s= open_session(args["user"], args["password"])
+        s= open_session(args["user"], args["password"], args["login_url"])
         send_apprs(s, args["csv_fname"], args["trimester"], args["group_name"],
                    ask_to_write= args["ask_to_write"], never_write= args["never_write"],
                    ask_to_delete= args["ask_to_delete"], never_delete= args["never_delete"])
     finally:
         if s is not None:
-            s.close()
+            close_session(s)
 
 if __name__ == '__main__' :
     display_errors(main)

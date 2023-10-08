@@ -401,7 +401,7 @@ def main():
         shared_args=["group", "trimester"]
         # Set dont_process="csv_fname" because we do more than the default processing here.
         args= lvs_get_args(arg_descs=arg_descs, shared_args= shared_args, description='Checks for student\'s attendance on an axess website. Will interactively prompt for most arguments if not given.', prompt_csv=False, silent_csv= True, confirm_csv= True)
-        s= open_session(args["user"], args["password"])
+        s= open_session(args["user"], args["password"], args["login_url"])
         classgroups= mandatory_get_attendance_classgroups(s)
         params= collect_all_necessary_params(s, classgroups,
                                              group_name= args["group_name"],
@@ -419,7 +419,7 @@ def main():
                           grades_dict= grades_dict)
     finally:
         if s is not None:
-            s.close()
+            close_session(s)
         
 if __name__ == '__main__' :
     display_errors(main)

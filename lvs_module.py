@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 Scripting for an Axess website.
-
-This module provides functions but has no main().
 """
 
 from guify import *
+import pronote
 
 import requests
 import json
@@ -19,6 +18,7 @@ import time
 import getpass
 import argparse
 import appdirs
+import functools
 
 appname= "LVSconnect"
 config_fname= appname + "_config.json"
@@ -28,9 +28,13 @@ base_url= ''
 
 urls={}
 
+@pronote.reimplemented
 def set_base_url(url):
     global base_url
-    base_url= url
+    m= re.match("^(https://[^/]+).*$", url)
+    if not m:
+        raise RuntimeError("Incorrect url provided, aborting")
+    base_url= m.group(1)
 
 def add_url(name, rel_url):
     global urls
@@ -106,15 +110,15 @@ def update_config_file(config_dict):
 # Passed each as parser.add_argument(*a, **ka)
 # First element MUST be a tuple
 shared_arg_descs= [
-    (('-t', '--trimester'), {'type': int, 'choices': [1,2,3], 'help':'Trimester for the test. Must be 1, 2 or 3. Default is to guess from the csv file name or current date.'}),
+    (('-t', '--trimester'), {'type': int, 'choices': [1,2,3], 'help':'Trimester. Must be 1, 2 or 3. Default is to guess from the csv file name or current date.'}),
     (('-g', '--group'), {'dest': 'group_name',
-                            'help':'The name of the group (or class) of students for the test. Default is to guess from the csv file content (top left cell).'}),
+                            'help':'The name of the group (or class) of students for the evaluation. Default is to guess from the csv file content (top left cell).'}),
     (('-d', '--dry-run'), {'action':'store_true',
                             'help':'Do not upload anything to the website.'}),
     (('-u', '--user'), {'help':'The user for login. Without this option, the program will prompt for login info.'}),
     (('-p', '--password'), {'help':'The password for login. Without this option, the program will prompt for login info.'}),
-    (('--base-url',), {'dest': 'base_url',
-                       'help':'The base url of the website to connect to. If not provided, will look for a config file containing the base url, or will prompt for it.'}),
+    (('--login-url',), {'dest': 'login_url',
+                       'help':'The login url of the website to connect to. If not provided, will look for a config file containing the login url, or will prompt for it.'}),
     (('-c', '--cli',), {'action':argparse.BooleanOptionalAction, 'help':'Command line interface (launch without graphical dialog).'})
     ]
 
@@ -122,7 +126,7 @@ def lvs_get_args(arg_descs=[], shared_args=[], description="", dont_process=[], 
                  prompt_csv=True, silent_csv= False, confirm_csv= False):
     shared_args= set(shared_args)
     # Always included for all calling programs
-    common_arg_names= ["user", "password", "base-url", "cli"]
+    common_arg_names= ["user", "password", "login-url", "cli"]
     shared_args.update(common_arg_names)
     parser = argparse.ArgumentParser(description=description)
     arg_names= set()
@@ -157,21 +161,22 @@ def lvs_get_args(arg_descs=[], shared_args=[], description="", dont_process=[], 
     if should_process("dry-run"):
         if args["dry_run"] is None:
             args["dry_run"]= False
-    if should_process("base-url"):
-        if args["base_url"] is None:
-            url= input("No url provided. Please type the base url of the website, for example \"https://exemple.la-vie-scolaire.fr\"")
+    if should_process("login-url"):
+        if args["login_url"] is None:
+            url= input("No url provided. Please type the url you use to login on the website,\nfor example \"https://exemple.la-vie-scolaire.fr/login\" or\n\"https://0123456a.index-education.net/pronote/professeur.html\"")
             if not url:
                 raise RuntimeError("Empty url provided, aborting")
-            args["base_url"]= url
-        url= args["base_url"]
-        url=url.strip()
-        if len(url) >= 1 and url[-1] == "/":
-            url= url[:-1]
-        print("Using base url " + url)
-        if not "base_url" in config_dict:
-            print("Writing base url to config file ")
-            update_config_file({"base_url":url})
-        set_base_url(url)
+            args["login_url"]= url
+        url= args["login_url"]
+        url= url.strip(" /")
+        if not url.startswith("https://"):
+            raise RuntimeError("Incorrect url provided, aborting")
+        print("Using login url " + url)
+        if not "login_url" in config_dict:
+            print("Writing login url to config file ")
+            update_config_file({"login_url":url})
+        args["login_url"]= url
+        pronote.initialize(login_url=url)
     if should_process("csv_fname") or should_process("csv_file"):
         if args["csv_fname"] is None:
             args["csv_fname"]= get_csv_filename(prompt_if_notfound=prompt_csv,
@@ -191,7 +196,9 @@ def lvs_get_args(arg_descs=[], shared_args=[], description="", dont_process=[], 
                 args["trimester"]= get_trimester_from_csv_fname(args["csv_fname"])
     return args
 
-def open_session(user, password):
+# The login_url is ignored for the LVS backend.
+@pronote.reimplemented
+def open_session(user, password, login_url):
     if user is None:
         user= input("Username:\n")
     if password is None:
@@ -214,10 +221,15 @@ def open_session(user, password):
     print("Authentification success")
     return s
 
+@pronote.reimplemented
+def close_session(s):
+    return s.close()
+
 def base64_pad(s):
     pad = len(s)%4
     return s + "="*pad
 
+@pronote.notimplemented
 # This id is needed in some requests, and only given through the initial session cookie.
 def get_teacher_id(s):
     if not 'JWT-LVS' in s.cookies:
@@ -231,6 +243,7 @@ def get_teacher_id(s):
     teacher_id= payload_json["pid"]
     return teacher_id
 
+@pronote.reimplemented
 def get_groups(s):
     teacher_id= get_teacher_id(s)
     url= get_url("get_groups")
@@ -242,14 +255,15 @@ def get_groups(s):
     json_groups= r.json()
     return json_groups
 
-def ends_with(s, end):
-    return s[-len(end):] == end
-
 def is_csv_filename(fname):
-    return ends_with(fname, ".csv")
+    return fname.endswith(".csv")
+
+@pronote.reimplemented
+def trimester_regex():
+    return r"(?:1er|2ème|3ème) Trimestre"
 
 def is_lvs_trimester_csv(fname):
-    return bool(re.match(".*_(1er|2ème|3ème) Trimestre.*\.csv", fname))
+    return is_csv_filename(fname) and bool(re.search(trimester_regex(), fname))
 
 def get_csv_filename(prompt_if_notfound= True, silent= False, confirm= False):
     csv_fname=""
@@ -304,7 +318,8 @@ def get_csv_rows(csv_fname):
         csv_reader= csv.reader(csv_f, dialect=dialect)
         rows= list(csv_reader)
         if rows and rows[0]:
-            # \ufeff is the utf-8 BOM character. It is sometimes inserted at the sart of CSV files, causing problems.
+            # \ufeff is the utf-8 BOM character.
+            # It is sometimes inserted at the sart of CSV files, causing problems.
             if rows[0][0][0] == "\ufeff":
                 rows[0][0]= rows[0][0][1:]
         csv_f.close()
@@ -383,12 +398,14 @@ def get_current_date_s():
     return s
 
 # returns a dict of group_name : service_id
+@pronote.notimplemented
 def get_services(json_groups):
     service_id_of_group_name= {}
     for group in json_groups:
         service_id_of_group_name[group["libelle"]] = group["id"]
     return service_id_of_group_name
 
+@pronote.notimplemented
 def match_group_name_in_json(group_name, json_groups):
     service_id_of_group_name= get_services(json_groups)
     for group_name_web, service_id in service_id_of_group_name.items():
@@ -396,10 +413,12 @@ def match_group_name_in_json(group_name, json_groups):
             return group_name_web, service_id
     raise RuntimeError("Couldn't match group name " + group_name + " in website.")
 
+@pronote.reimplemented
 def get_service_id(group_name, json_groups):
     group_name_web, service_id= match_group_name_in_json(group_name, json_groups)
     return service_id
 
+@pronote.notimplemented
 def get_trimester_from_json(json_groups):
     if len(json_groups) == 0:
         raise RuntimeError("No groups found on website")
@@ -447,6 +466,12 @@ def guess_trimester_from_date(date_ymd= None):
     else:
         return 3
 
+# Parse from website (str to str)
+@pronote.reimplemented
+def grade_parse(grade):
+    return grade
+
+@pronote.reimplemented
 def get_grades(s, service_id, trimester):
     url= get_url("get_grades")
     payload='{"serviceId":0,"periodeId":0,"devoirId":null,"profId":0}'
@@ -461,6 +486,7 @@ def get_grades(s, service_id, trimester):
     return json_grades
 
 # returns a dict of student_id : student_lastname
+@pronote.notimplemented
 def get_student_lastnames_of_ids(json_grades):
     d= {}
     for student in json_grades["eleves"]:
@@ -470,6 +496,7 @@ def get_student_lastnames_of_ids(json_grades):
     return d
 
 # returns a dict of student_id : student_name
+@pronote.reimplemented
 def get_student_names_of_ids(json_grades):
     d= {}
     for student in json_grades["eleves"]:
@@ -478,36 +505,42 @@ def get_student_names_of_ids(json_grades):
         d[student_id]= student_name
     return d
 
-# returns a dict of (test_id, student_id) : grade, where grade is a str
+# returns a dict of (evaluation_id, student_id) : grade, where grade is a str
+@pronote.reimplemented
 def grades_dict_of_json(json_grades):
     grades= {}
     for student in json_grades["eleves"]:
         student_id= student["eleveid"]
-        for test in student["notes"]:
-            test_id= test["iddevoir"]
-            grades[(test_id, student_id)]= test["note"]
+        for evaluation in student["notes"]:
+            evaluation_id= evaluation["iddevoir"]
+            grade= grade_parse(evaluation["note"])
+            grades[(evaluation_id, student_id)]= grade
     return grades
 
-def get_date_from_json_ymd(json_grades, test_id):
+@pronote.notimplemented
+def get_date_from_json_ymd(json_grades, evaluation_id):
     for e in json_grades["evaluations"]:
-        if e["id"] == test_id:
+        if e["id"] == evaluation_id:
             return e["dateDevoir"]
-    raise RuntimeError(f"Test id {test_id} not on website.")
+    raise RuntimeError(f"Evaluation id {evaluation_id} not on website.")
+
+def get_trimester_nb(s):
+    m= re.search(trimester_regex(), s)
+    if not m:
+        return None
+    trimester_s= m.group()
+    trimester_nb= int(re.search("\d", trimester_s).group())
+    return trimester_nb
 
 def get_trimester_from_csv_fname(csv_fname):
-    trimester= 0
-    if csv_fname[-18:] == '_1er Trimestre.csv' :
-        trimester= 1
-    elif csv_fname[-19:] == '_2ème Trimestre.csv' :
-        trimester= 2
-    elif csv_fname[-19:] == '_3ème Trimestre.csv' :
-        trimester= 3
-    else:
-        raise RuntimeError("Unable to guess trimester from csv file name. The trimester must be explicitely given. Launch the program with -h to see usage.")
+    trimester= get_trimester_nb(csv_fname)
+    if trimester is None:
+        raise RuntimeError(f'Unable to guess trimester from csv file name "{csv_fname}". The trimester must be explicitely given. Launch the program with -h to see usage.')
     print("Using trimester from csv file name:", trimester)
     return trimester
 
-def get_mess_dest_json(s, dest_search_s, dest_type= "student"):
+@pronote.reimplemented
+def get_mess_dest_json(s, dest_search_s, dest_type="student"):
     # typeRecherche: 0= tous, 1= personnes, 2= groupes
     payload_dest_search= '{"niveaux":[],"profils":[2],"groupes":[],"maxrows":50,"typeRecherche":1,"page":1}'
     json_payload_dest_search= json.loads(payload_dest_search)
@@ -538,6 +571,7 @@ def convert_to_terrible_html_message(text_s):
         r+= '</p>'
     return r
 
+@pronote.reimplemented
 def send_message(s, dest_search_s, message_subject, message_body, dest_type="student"):
     r= s.post(get_url("new_message"))
     r.raise_for_status()
@@ -563,6 +597,7 @@ def send_message(s, dest_search_s, message_subject, message_body, dest_type="stu
         print('Error: Message NOT sent successfully')
     return r
 
+@pronote.notimplemented
 def pretty_print_inbox(json_inbox):
     # Reverse to display latest email at the bottom for easier testing.
     l= list(json_inbox['mails'])
@@ -577,6 +612,7 @@ def pretty_print_inbox(json_inbox):
         print(soup.text)
         print()
 
+@pronote.notimplemented
 def show_messages(s):
     r= s.get(get_url("inbox"))
     r.raise_for_status()

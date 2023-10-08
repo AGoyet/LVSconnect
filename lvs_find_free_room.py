@@ -436,7 +436,7 @@ def main():
         # Done processing args
         s= None
         if not args["load"]:
-            s= open_session(args["user"], args["password"])
+            s= open_session(args["user"], args["password"], args["login_url"])
             
         result_s= find_and_display_free_rooms(s, date_tuple, start_tt,
                                     excluded=excluded, duration=args["duration"],
@@ -450,7 +450,7 @@ def main():
                 f.write(result_s)
     finally:
         if s is not None:
-            s.close()
+            close_session(s)
 
 if __name__ == '__main__' :
     display_errors(main)
