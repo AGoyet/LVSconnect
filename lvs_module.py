@@ -320,7 +320,7 @@ def get_csv_rows(csv_fname):
         if rows and rows[0]:
             # \ufeff is the utf-8 BOM character.
             # It is sometimes inserted at the sart of CSV files, causing problems.
-            if rows[0][0][0] == "\ufeff":
+            if rows[0][0] and rows[0][0][0] == "\ufeff":
                 rows[0][0]= rows[0][0][1:]
         csv_f.close()
         return rows
@@ -378,6 +378,10 @@ def is_csv_number(cell):
     except ValueError:
         return False
 
+def csv_number_of_s(s):
+    #return str(s).replace(",",".")
+    return s
+    
 def nicer_str(obj):
     r= ""
     if type(obj) == dict :
@@ -485,6 +489,18 @@ def get_grades(s, service_id, trimester):
     json_grades= r.json()
     return json_grades
 
+@pronote.reimplemented
+def get_apprs(s, service_id, trimester):
+    url= get_url("get_apprs")
+    payload='{"idService":0,"idPeriode":0}'
+    json_payload= json.loads(payload)
+    json_payload["idService"]= service_id
+    json_payload["idPeriode"]= trimester
+    r= s.post(url, json= json_payload)
+    r.raise_for_status()
+    json_apprs= r.json()
+    return json_apprs
+
 # returns a dict of student_id : student_lastname
 @pronote.notimplemented
 def get_student_lastnames_of_ids(json_grades):
@@ -516,6 +532,20 @@ def grades_dict_of_json(json_grades):
             grade= grade_parse(evaluation["note"])
             grades[(evaluation_id, student_id)]= grade
     return grades
+
+# returns a dict of student_id : appr
+@pronote.reimplemented
+def appr_dict_of_json(json_apprs):
+    apprs= {}
+    for student in json_apprs["eleves"]:
+        student_id= student["id"]
+        if (not "appreciation" in student) or not student["appreciation"]:
+            continue
+        appr= student["appreciation"].get("appreciation","")
+        if not appr:
+            appr= ""
+        apprs[student_id]= appr.strip()
+    return apprs
 
 @pronote.notimplemented
 def get_date_from_json_ymd(json_grades, evaluation_id):
@@ -559,6 +589,7 @@ def get_mess_dest_json(s, dest_search_s, dest_type="student"):
     return json_dest_search_res[0]
 
 # Website generates html from text in a very specific (and terrible) way.
+@pronote.reimplemented
 def convert_to_terrible_html_message(text_s):
     r= ''
     for line in text_s.splitlines():
@@ -572,7 +603,20 @@ def convert_to_terrible_html_message(text_s):
     return r
 
 @pronote.reimplemented
-def send_message(s, dest_search_s, message_subject, message_body, dest_type="student"):
+def cache_possible_recipients(s, dest_types=None):
+    # No caching for lvs
+    pass
+
+@pronote.reimplemented
+def clear_possible_recipients_cache():
+    # No caching for lvs
+    pass
+
+# "enseigne" (enseigné) is an optional parameter used in the pronote backend to only search
+# for students taught by the user (will only work with dest_type="student").
+@pronote.reimplemented
+def send_message(s, dest_search_s, message_subject, message_body, dest_type="student",
+                 enseigne=None):
     r= s.post(get_url("new_message"))
     r.raise_for_status()
     json_new_message= r.json()
@@ -583,19 +627,21 @@ def send_message(s, dest_search_s, message_subject, message_body, dest_type="stu
     json_payload_compose= json_new_message
     json_payload_compose['a']= json_dest_add_res
     json_payload_compose['objet']= message_subject
-    json_payload_compose['message']= message_body
+    json_payload_compose['message']= convert_to_terrible_html_message(message_body)
     r= s.post(get_url("compose").format(json_new_message['id']), json= json_payload_compose)
     r.raise_for_status()
     r= s.post(get_url("send").format(json_new_message['id']))
     r.raise_for_status()
     res_json= r.json()
     if r.status_code == 200 and int(res_json['nbenvoi']) == 1:
-        print('SUCCESS')
+        errors= 0
     elif int(res_json['nbenvoi']) != 1:
         print('Error: Nb of messages sent:', res_json['nbenvoi'])
+        errors= 1
     else:
         print('Error: Message NOT sent successfully')
-    return r
+        errors= 2
+    return errors
 
 @pronote.notimplemented
 def pretty_print_inbox(json_inbox):
@@ -627,15 +673,25 @@ def student_rows_of_csv_rows(rows):
     for row in rows[1:] :
         csv_name= row[0]
         # Second line of website generated csv
-        if csv_name[-len("élèves"):] == "élèves":
+        if csv_name.endswith("élèves"):
             continue
         if csv_name.strip() == "":
             continue
+        # No numbers in names (I hope)
+        if re.search(r"\d", csv_name):
+            continue
         # Last two lines of website generated csv
-        if csv_name == "Moyenne" or csv_name == "Note min | Note max":
+        if csv_name == "Moyenne" or csv_name == "Note min | Note max" or csv_name == "Moy. du groupe :" :
             break
         student_rows.append(row)
     return student_rows
+
+# Show a preview of some students (e.g thoses that will be affected by a change).
+def students_preview(student_names, student_ids):
+    names= [student_names[sid] for sid in student_ids]
+    if len(names) > 4:
+        names= names[:4] + ["..."]
+    return "For student(s): "+", ".join(names)
 
 # Returns (error_flag, row_of_student_id). The second is a dict of student_id:row.
 def match_students_to_rows(s, csv_fname, json_grades= None, student_names_of_ids= None):

@@ -1,4 +1,6 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
 Utilities built on top of pronotepy. The pronotepy module is not imported if a pronote backend is not detected.
 
@@ -12,6 +14,7 @@ To make it transparent to the calling module, the functions take the same argume
 """
 
 import logging
+#logging.basicConfig()
 logging.basicConfig(level=logging.DEBUG)
 
 import re
@@ -19,6 +22,9 @@ import functools
 
 # Should not be set manualy
 __is_pronote_backend__= None
+
+# See functions cache_possible_recipients and clear_possible_recipients_cache
+cached_possible_recipient_data_list= None
 
 # Should not be called manualy
 def set_is_pronote_backend(value):
@@ -81,7 +87,7 @@ def grade_compose(string):
         # The replace is here in case of a spreadsheet conversion.
         return string.replace(".",",") 
 
-trimester_regex= r"Trimestre (1|2|3)"
+trimester_regex= r"Trimestre (?:1|2|3)"
 
 def donnees(r):
     return r["donneesSec"]["donnees"]
@@ -124,11 +130,13 @@ def union_dict(d1, d2):
     d.update(d2)
     return d
 
-
 # reimplementation
 # Returns a pronotpy.Client object (instead of a request.session object)
 def open_session(user, password, login_url):
-    client= pronotepy.Client(login_url, username=user, password=password)
+    try:
+        client= pronotepy.Client(login_url, username=user, password=password)
+    except Exception as e:
+        raise RuntimeError(str(e))
     if not client.logged_in:
         raise RuntimeError("Authentification failure")
     return client
@@ -136,6 +144,7 @@ def open_session(user, password, login_url):
 # reimplementation
 def close_session(client):
     # client.post("SaisieDeconnexion", 8)
+    client.communication.session.close()
     pass
 
 def request_default_period(client):
@@ -197,15 +206,17 @@ def get_grades(client, group_data, trimester_nb):
     grades_data= donnees(r)
     return grades_data
 
-# returns a dict of student_id : student_name
 # reimplementation
-def get_student_names_of_ids(grades_data):
-    d= {}
-    for student in grades_data["listeEleves"]["V"]:
-        student_id= student["N"]
-        student_name= student["L"]
-        d[student_id]= student_name
-    return d
+def get_apprs(client, group_data, trimester_nb):
+    period_data= request_period_from_trimester_nb(client, trimester_nb)
+    teacher_data= get_user_teacher(client)
+    service_data= request_group_service(client, group_data, period_data=period_data, teacher_data=teacher_data)
+    r= client.post("PageApprBulletin", 25, {'periode': union_dict(period_data, {"G":2}),
+                                     'ressource': filter_dict(group_data, ["G","N"]),
+                                     'service': filter_dict(service_data, ["L", "N"])}
+                   )
+    apprs_data= donnees(r)
+    return apprs_data
 
 # returns a dict of (evaluation_id, student_id) : grade, where grade is a str
 # reimplementation
@@ -218,6 +229,54 @@ def grades_dict_of_json(grades_data):
             grade= grade_parse(student["Note"]["V"])
             grades[(evaluation_id, student_id)]= grade
     return grades
+
+# returns a dict of student_id : appr_data
+def get_appr_of_student_ids(apprs_data):
+    appr_data_of_student_ids= {}
+    for line in apprs_data["listeLignes"]["V"]:
+        student= line["eleve"]["V"]
+        student_id= student["N"]
+        # If there is no appreciation yet for that student, the appA dict has no "L" key.
+        appr_data= line["appA"]["V"]
+        appr_data_of_student_ids[student_id]= appr_data
+    return appr_data_of_student_ids
+
+# returns a dict of student_id : appr
+# reimplementation
+def appr_dict_of_json(apprs_data):
+    appr_of_student_ids= get_appr_of_student_ids(apprs_data)
+    apprs= {}
+    for student_id, appr_data in appr_of_student_ids.items():
+        appr= appr_data.get("L","")
+        apprs[student_id]= appr
+    return apprs
+
+# returns a dict of student_id : student_data
+def get_student_of_ids(grades_data):
+    d= {}
+    for student in grades_data["listeEleves"]["V"]:
+        student_id= student["N"]
+        d[student_id]= student
+    return d
+
+# This is "class", not "group". Each student belongs to a single class.
+# returns a dict of student_id : class_data
+def get_class_of_student_ids(grades_data):
+    student_data_of_ids= get_student_of_ids(grades_data)
+    d= {}
+    for student_id, student_data in student_data_of_ids.items():
+        class_data= student_data["classe"]["V"]
+        d[student_id]= class_data
+    return d
+
+# returns a dict of student_id : student_name
+# reimplementation
+def get_student_names_of_ids(grades_data):
+    student_data_of_ids= get_student_of_ids(grades_data)
+    d= {}
+    for student_id, student_data in student_data_of_ids.items():
+        d[student_id]= student_data["L"]
+    return d
 
 def create_grade_csv_file(group_data, period_data, teacher_data):
     period_name= period_data["L"]
@@ -344,13 +403,73 @@ def send_grades_dopost(client, trimester, grades_data, group_data, new_grades_di
     # Do post request
     r= client.post("SaisieNotesUnitaire", 23, post_data)
     
+# reimplementation
+def send_apprs_dopost(client, trimester, student_names, grades_data, apprs_data,
+                      group_data, new_apprs_dict):
+    period_data= request_period_from_trimester_nb(client, trimester)
+    student_data_of_ids= get_student_of_ids(grades_data)
+    class_data_of_student_ids= get_class_of_student_ids(grades_data)
+    appr_of_student_ids= get_appr_of_student_ids(apprs_data)
+    service_data= request_group_service(client, group_data)
+    # Used by the web client as id for newly created apprs. Decremented by 2 each time
+    new_appr_sequence_number= -1001
+    for student_id, appr in new_apprs_dict.items():
+        appr_id= appr_of_student_ids[student_id].get("N", None)
+        E_value= 2
+        no_web_appr= appr_id is None
+        if no_web_appr:
+            appr_id= new_appr_sequence_number
+            E_value= 1
+            new_appr_sequence_number -= 2
+        appr_data= {"E":E_value, "G":1, "L":appr, "N": appr_id}
+        class_data= class_data_of_student_ids[student_id]
+        student_data= student_data_of_ids[student_id]
+        post_data= {"appreciation": appr_data,
+                    # "G":1 for a "class" (?), "G":? for a "group"
+                    "classe": union_dict( {"G":1}, filter_dict(class_data, "LN") ),
+                    "eleve": union_dict( {"G":4}, filter_dict(student_data, "LN") ),
+                    "periode": filter_dict(period_data, "GLN"),
+                    "service": filter_dict(service_data, "LN"),
+                    "typeGenreAppreciation":0}
+        student_name= student_names[student_id]
+        print(f"Uploading {student_name}...")
+        # Do post request
+        r= client.post("SaisieAppreciation", 25, post_data)
+        from pprint import pprint
+        if "_messagesErreur_" in str(r):
+            print("Error:")
+            pprint(post_data)
+            print("response:")
+            pprint(r)
+            print("debug stop")
+            return
+        if no_web_appr:
+            try:
+                appr_id= r["donneesSec"]["RapportSaisie"]["appreciation"]["V"]["N"]
+            except KeyError:
+                print("Error creating new appreciation")
+                pprint(r)
+                return
+            E_value= 2
+            appr_data= {"E":E_value, "G":1, "L": appr, "N": appr_id}
+            post_data["appreciation"]= appr_data
+            r= client.post("SaisieAppreciation", 25, post_data)            
+            if "_messagesErreur_" in str(r):
+                print("Error:")
+                pprint(post_data)
+                print("response:")
+                pprint(r)
+                print("debug stop")
+                return
+
+# Slow. Consider using function cached_possible_recipients
 def get_possible_recipients(client, recipient_types=None):
-    V_of_recipient_type= {"teachers": "[3]",
+    V_of_recipient_type= {"teacher": "[3]",
                           "staff": "[34]",
-                          "students": "[4]",
-                          "parents": "[5]"}
+                          "student": "[4]",
+                          "parent": "[5]"}
     if recipient_types is None:
-        recipient_types= ["teachers","staff"]
+        recipient_types= ["teacher","staff"]
     assert type(recipient_types) == list
     possible_recipient_data_list= []
     for recipient_type in recipient_types:
@@ -361,6 +480,21 @@ def get_possible_recipients(client, recipient_types=None):
     return possible_recipient_data_list
 
 
+# Since get_possible_recipients is slow, it is useful to cache.
+# BUT the cache becomes outdated after a few minutes.
+# This should be used for a batch of queries, then cleared.
+# reimplementation
+def cache_possible_recipients(client, dest_types=None):
+    global cached_possible_recipient_data_list
+    cached_possible_recipient_data_list= get_possible_recipients(client, dest_types)
+
+    
+# reimplementation
+def clear_possible_recipients_cache():
+    global cached_possible_recipient_data_list
+    cached_possible_recipient_data_list= None
+
+
 def find_recipient(client, recipient_name, possible_recipient_data_list=None,
                    recipient_type=None, recipient_function=None,
                    **other_filters):
@@ -369,8 +503,11 @@ def find_recipient(client, recipient_name, possible_recipient_data_list=None,
                           "student": 4,
                           "parent": 5}
     if possible_recipient_data_list is None:
-        assert recipient_type
-        possible_recipient_data_list= get_possible_recipients(client, recipient_types= [recipient_type])
+        if cached_possible_recipient_data_list:
+            possible_recipient_data_list= cached_possible_recipient_data_list
+        else:
+            assert recipient_type
+            possible_recipient_data_list= get_possible_recipients(client, recipient_types= [recipient_type])
     if recipient_type is None:
         raw_l= find_in_data(possible_recipient_data_list, substr=True, L=recipient_name,
                             **other_filters)
@@ -392,10 +529,25 @@ def find_recipient(client, recipient_name, possible_recipient_data_list=None,
     recipient_data= l[0]
     return recipient_data
 
+
 # reimplementation
 def get_mess_dest_json(client, dest_search_s, dest_type= "student"):
     recipient_data= find_recipient(client, dest_search_s, recipient_type=dest_type)
     return recipient_data
+
+
+# Website generates html from text in a very specific (and terrible) way.
+# reimplementation
+def convert_to_terrible_html_message(text_s):
+    html_s= ""
+    for line in text_s.split("\n"):
+        html_s+= '<div style="font-family: Arial; font-size: 13px;">'
+        html_s+= line
+        if not line.strip():
+            html_s+= '&nbsp;'
+        html_s+= '</div>'
+    return html_s
+
 
 # Starts discussion with ONE person
 def new_discussion(client, subject, message, recipient_data=None, recipient_name=None,
@@ -407,19 +559,28 @@ def new_discussion(client, subject, message, recipient_data=None, recipient_name
     assert "L" in recipient_data
     recipients= [recipient_data]
     recipients_post_data = [ filter_dict(r, "NGL") for r in recipients ]
+    message_html= convert_to_terrible_html_message(message)
     post_data= {
         "objet": subject,
-        "contenu": message,
+        "contenu": { "_T": 21, "V": message_html},
         "listeDestinataires": recipients_post_data,
     }
-    r= client.post("SaisieMessage", 131, post_data)
-    return r
+    r_json= client.post("SaisieMessage", 131, post_data)
+    return r_json
+
 
 # reimplementation
-def send_message(client, dest_search_s, subject, message, dest_type="student"):
-    recipient_data= find_recipient(client, dest_search_s, recipient_type=dest_type)
-    r= new_discussion(client, subject, message, recipient_data=recipient_data)
-    return r
+def send_message(client, dest_search_s, subject, message, dest_type="student", enseigne=None):
+    if enseigne is None:
+        recipient_data= find_recipient(client, dest_search_s, recipient_type=dest_type)        
+    else:
+        recipient_data= find_recipient(client, dest_search_s, recipient_type=dest_type,
+                                       enseigne=enseigne)
+    r_json= new_discussion(client, subject, message, recipient_data=recipient_data)
+    # pronotepy does not let us acess r itself, only r_json, so we can't access r.status_code
+    # However it will throw if there is an error (which we should catch somewhere else)
+    return 0 # no error detected
+
 
 # reimplementation
 def send_student_line_as_discussion(subject, message, student_name, possible_recipient_sutdents):

@@ -220,14 +220,10 @@ def send_grades(s, csv_fname, trimester, group_name,
     # (This can also avoid uploading a lot of empty grades.)
     if created_flag:
         json_grades= get_grades(s, service_id, trimester)
+        
     error_flag, row_of_student_id= match_students_to_rows(s, csv_fname, json_grades)
     grades_website= grades_dict_of_json(json_grades)
     student_names= get_student_names_of_ids(json_grades)
-    def students_preview(student_ids):
-        names= [student_names[sid] for sid in student_ids]
-        if len(names) > 4:
-            names= names[:4] + ["..."]
-        return "For student(s): "+", ".join(names)
     # A "deleted" grade is when we replace something with ''
     delete_count= 0
     overwrite_count= 0
@@ -269,15 +265,15 @@ def send_grades(s, csv_fname, trimester, group_name,
             new_grades_dict[evaluation_id][student_id]= grade_csv
         if len(write_list) > 0:
             print(f"Evaluation \"{evaluation_name}\": {len(write_list)} grade(s) to upload.")
-            print(students_preview(write_list))
+            print(students_preview(student_names, write_list))
             write_count+= len(write_list)
         if len(overwrite_list) > 0:
             print(f"Warning: in evaluation \"{evaluation_name}\": {len(overwrite_list)} grade(s) to upload would OVERWRITE an existing grade on website.")
-            print(students_preview(overwrite_list))
+            print(students_preview(student_names, overwrite_list))
             overwrite_count+= len(overwrite_list)
         if len(delete_list) > 0 and not never_delete:
             print(f"Warning: in evaluation \"{evaluation_name}\": {len(delete_list)} grade(s) to upload would DELETE an existing grade on website.")
-            print(students_preview(delete_list))
+            print(students_preview(student_names, delete_list))
             delete_count+= len(delete_list)
     if write_count == 0:
         print("No grades need to be uploaded.")
@@ -317,7 +313,7 @@ def main():
 #            (('-e', '--evaluation'), {
 #                        'help':'If provided, only this evaluation (evaluation) will be modified on the website.'}),            
             (('--write',), {'action':argparse.BooleanOptionalAction, 'help':'Write grades to the website. Default is to ask. Note that this is independent from creating new evaluations. However, --no-write implies --no-delete.'}),
-            (('--delete', '--overwrite'), {'action':argparse.BooleanOptionalAction, 'help':'Overwrite existing grades on the website (including deleting them if they are not present in the CSV). Default is to ask. This does not delete evaluations.'}),
+            (('--delete', '--overwrite'), {'action':argparse.BooleanOptionalAction, 'help':'Overwrite existing grades on the website (including deleting them if they are not present in the CSV). Default is to not delete. This does not delete evaluations.'}),
             (('--create',), {'action':argparse.BooleanOptionalAction, 'help':'Create or do not create evaluations if they do not exist on the website. Default is to create.'}),
             (('--hidden',), {'action':argparse.BooleanOptionalAction, 'help':'When creating evaluations, keep it hidden from students (corresponds to the "publish" option on the website). Default is to publish the evaluation. Does not affect evaluations which already exist on the website.'})
         ]
@@ -332,8 +328,8 @@ def main():
             if args["write"] == False:
                 args["delete"]= True
         if args["delete"] is None:
-            args["ask_to_delete"]= True
-            args["never_delete"]= False
+            args["ask_to_delete"]= False
+            args["never_delete"]= True
         else:
             args["ask_to_delete"]= False
             args["never_delete"]= not args["delete"]
