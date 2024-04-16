@@ -225,6 +225,10 @@ def open_session(user, password, login_url):
 def close_session(s):
     return s.close()
 
+@pronote.reimplemented
+def request_default_period(s):
+    raise Notimplemented
+
 def base64_pad(s):
     pad = len(s)%4
     return s + "="*pad
@@ -254,6 +258,18 @@ def get_groups(s):
     r.raise_for_status()
     json_groups= r.json()
     return json_groups
+
+@pronote.reimplemented
+def get_group_name(json_group):
+    raise NotImplemented
+
+@pronote.reimplemented
+def get_period_name(period_data):
+    raise NotImplemented
+
+@pronote.reimplemented
+def get_period_name_from_trimester(trimester):
+    return ["1er", "2ème", "3ème"][trimester-1] + " Trimestre"
 
 def is_csv_filename(fname):
     return fname.endswith(".csv")
@@ -378,9 +394,14 @@ def is_csv_number(cell):
     except ValueError:
         return False
 
+def float_of_csv_number(s):
+    return float(str(s).replace(",","."))
+    
+@pronote.reimplemented
 def csv_number_of_s(s):
     #return str(s).replace(",",".")
-    return s
+    return str(s).replace(".",",")
+    #return s
     
 def nicer_str(obj):
     r= ""
@@ -520,6 +541,14 @@ def get_student_names_of_ids(json_grades):
         student_name= student["nom"] + " " + student["prenom"]
         d[student_id]= student_name
     return d
+
+# Returns (write, delete, overwrite) which are lists of keys in either source or target
+def dict_diff_key_lists(source, target):
+    # Do not use set(source)-set(target), as it does not keep the order of keys
+    write= [ k for k in source if k not in target ]
+    delete= [ k for k in target if k not in source ]
+    overwrite= [ k for k in target if k in source and target[k] != source[k] ]
+    return write, delete, overwrite
 
 # returns a dict of (evaluation_id, student_id) : grade, where grade is a str
 @pronote.reimplemented

@@ -147,6 +147,7 @@ def close_session(client):
     client.communication.session.close()
     pass
 
+# reimplementation
 def request_default_period(client):
     r= client.post("ListePeriodes", 23)
     period_data= get_response_data(r, key="periodeParDefaut")
@@ -195,10 +196,13 @@ def get_service_id(group_name, group_data_list):
     return group_data
 
 # reimplementation
-def get_grades(client, group_data, trimester_nb):
-    period_data= request_period_from_trimester_nb(client, trimester_nb)
+def get_grades(client, group_data, trimester_nb=None, period_data=None, service_data=None):
+    if period_data is None:
+        assert trimester_nb is not None
+        period_data= request_period_from_trimester_nb(client, trimester_nb)
     teacher_data= get_user_teacher(client)
-    service_data= request_group_service(client, group_data, period_data=period_data, teacher_data=teacher_data)
+    if service_data is None:    
+        service_data= request_group_service(client, group_data, period_data=period_data, teacher_data=teacher_data)
     r= client.post("PageNotes", 23, {'periode': union_dict(period_data, {"G":2}),
                                      'ressource': filter_dict(group_data, ["G","N"]),
                                      'service': filter_dict(service_data, ["N"])}
@@ -278,19 +282,37 @@ def get_student_names_of_ids(grades_data):
         d[student_id]= student_data["L"]
     return d
 
-def create_grade_csv_file(group_data, period_data, teacher_data):
-    period_name= period_data["L"]
-    group_name= group_data["L"]
-    service_data= request_group_service(group_data)
-    grades_data= request_grades(group_data, period_data=period_data, service_data=service_data)
+# reimplementation
+def get_group_name(group_data):
+    if group_data["G"] != 2:
+        return None
+    return group_data["L"]
 
+# reimplementation
+def get_period_name(period_data):
+    return period_data["L"]
+
+# reimplementation
+def get_period_name_from_trimester(trimester_nb):
+    return f"Trimestre {trimester_nb}"
+
+# reimplementation
+def csv_number_of_s(s):
+    #return str(s).replace(",",".")
+    return str(s).replace(".",",")
+
+# reimplementation
+def create_grade_csv_rows(client, trimester_nb, group_data):
+    period_data= request_period_from_trimester_nb(client, trimester_nb)
+    group_name= get_group_name(group_data)
+    teacher_data= get_user_teacher(client)
+    service_data= request_group_service(client, group_data, period_data=period_data)
+    grades_data= get_grades(client, group_data, period_data=period_data, service_data=service_data)
     student_names_of_ids= { d["N"]:d["L"] for d in grades_data["listeEleves"]["V"] }
     student_names= sorted(list(student_names_of_ids.values()))
     nb_students= len(student_names)
-
     csv_first_row= [group_name]
     csv_second_row= [f"{nb_students} élèves"]
-
     for evaluation in grades_data["listeDevoirs"]["V"]:
         title= evaluation["commentaire"]
         bareme= csv_number_of_s(evaluation["bareme"]["V"])
@@ -299,38 +321,53 @@ def create_grade_csv_file(group_data, period_data, teacher_data):
         desc= f"/{bareme} - Coef : {coefficient}"
         csv_first_row.append(title)
         csv_second_row.append(desc)
-
+    # Trimester average. Desc does not have the format of grades (otherwise it would become a grade and be uploaded).
+    trimester_avg_name= f"T{trimester_nb}"
+    csv_first_row.append(trimester_avg_name)
+    csv_second_row.append("Note")
+    # Appreciation col
+    csv_first_row.append("Appréciations générales")
     csv_rows= [csv_first_row, csv_second_row]
-
     row_i_of_names= {}
-
     for student_name in student_names:
-        row= [""] * len(csv_first_row)
+        # +1 for the trimester average
+        row= [""] * ( len(csv_first_row) + 1)
         row[0]= student_name
         csv_rows.append(row)
         row_i_of_names[student_name]= len(csv_rows) - 1
-
-    evaluation_col= 0
-    for evaluation in grades_data["listeDevoirs"]["V"]:
-        evaluation_col+= 1
-        for student in evaluation["listeEleves"]["V"]:
-            grade= Util.grade_parse(student["Note"]["V"])
-            if grade:
-                csv_rows[row_i_of_names[student["L"]]][evaluation_col]= csv_number_of_s(grade)
-
-    csv_fname= f"{group_name}_{period_name}.csv"
-    with open(csv_fname, "w") as csv_file:
-        csv_writer= csv.writer(csv_file, delimiter=';', quotechar='"', quoting=csv.QUOTE_ALL)
-        csv_writer.writerows(csv_rows)
-
+    trimester_avg_col= len(grades_data["listeDevoirs"]["V"]) + 1
+    eval_with_students= [ ( evaluation, { student["L"]: student for student in evaluation["listeEleves"]["V"] } )
+                          for evaluation in grades_data["listeDevoirs"]["V"] ]
+    for i, student in enumerate(grades_data["listeEleves"]["V"]):
+        tot_grade= 0.
+        tot_max_grade= 0.
+        for evaluation_col, (evaluation, students_by_name) in enumerate(eval_with_students):
+            eval_student= students_by_name[student["L"]]
+            assert eval_student["L"] == student["L"]
+            grade= pronotepy.Util.grade_parse(eval_student["Note"]["V"])
+            # +1 because col 0 contains the names
+            csv_rows[row_i_of_names[student["L"]]][evaluation_col + 1]= csv_number_of_s(grade)
+            try:
+                grade_f= float(grade.replace(",","."))
+                coefficient= float(pronotepy.Util.grade_parse(evaluation["coefficient"]["V"]).replace(",","."))
+                max_grade= float(pronotepy.Util.grade_parse(evaluation["bareme"]["V"]).replace(",","."))
+            except ValueError:
+                continue
+            # grade_f, coefficient defined
+            tot_grade+= grade_f * coefficient
+            tot_max_grade+= max_grade * coefficient
+        # Update trimester average for that student
+        # (Will be overwritten for each grade, because we are iterating on evals not students.)
+        if tot_max_grade != 0.:
+            average= round(tot_grade / tot_max_grade * 20., 2)
+            csv_rows[row_i_of_names[student["L"]]][trimester_avg_col]= csv_number_of_s(average)
+    return csv_rows
 
 # Without only_this_group_name, does all groups
 def create_grade_csv_files(only_this_group_name= None):
-
     period_data= request_default_period(client)
     teacher_data= get_user_teacher(client)
     group_data_list= request_group_list(client)
-    
     for group_data in group_data_list:
         # Only do groups, not classes
         if group_data["G"] != 2:
@@ -338,7 +375,6 @@ def create_grade_csv_files(only_this_group_name= None):
         if only_this_group_name and group_data["L"] != only_this_group_name:
             continue
         create_grade_csv_file(group_data, period_data, teacher_data)
-
 
 def send_new_grades(new_grades_dict, evaluation_data=None, evaluation_name=None, grades_data=None, group_data=None, group_data_list=None, group_name=None):
     # Get all necessary data 

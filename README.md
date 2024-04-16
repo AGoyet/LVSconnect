@@ -1,5 +1,5 @@
 # LVSconnect
-This project aims to automate some tasks when using the "La Vie Scolaire" websites made by AXESS. The project is not affiliated with AXESS.
+This project aims to automate some tasks when using either the "La Vie Scolaire" websites made by AXESS, or the "pronote" websites made by INDEX ÉDUCATION. The project is not affiliated with AXESS or INDEX ÉDUCATION.
 
 A valid username and password for the website is necessary.
 
@@ -11,24 +11,12 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
+The packages `tkcalendar` and `pronotepy` are optional. Without `tkcalendar`, the programs will automatically select the "no graphical interface" option. Without `pronotepy`, connection will only be possible to La Vie Scolaire.
+
 ## Usage
 
 All programs have command line options (launch any with "-h" to see those options), but all can be run without any options,
 and will ask interactively for any needed parameter.
-
-### lvs_attendance
-
-This program will show all students that were absent for a given test, with the motive as registered by the school administration.
-This is slightly better than using the calendar view for attendance on the website, which checks for a "class" of students whereas
-this program checks for a "class". Groups can mix students from multiple classes, and tests are given to a group, not a class.
-On top of
-that the program filters out the students who have a numeric non zero grade for the test. 
-
-The user can also choose to check the attendance for a whole group for a given date, irrespective of tests (this is useful for a test which is not uploaded to the website yet).
-
-### lvs_find_free_room
-
-This program downloads the time schedule for each room then displays the ones which are free at a given date and time. Without any arguments, it asks for date and time.
 
 ### lvs_send_grades
 
@@ -55,6 +43,23 @@ from the website, edit column with the student's appreciations, then use the pro
 the upload would result in any deletion or overwriting, the program will give a warning with the name of affected students and
 ask for confirmation.
 
+#### Known issue (pronote only)
+The program can modify an existing appreciation, but not create a new one. This seems to be due to an inconsistency in the internal pronote API. The only fix currently is to create dummy appreciations first, then overwrite with the program. Note that empty appreciations (including white spaces) are not saved on pronote. The dummy appreciations should therefore contain at least one character, for example ".".
+
+
+### lvs_attendance (La Vie Scolaire only for now)
+
+This program will show all students that were absent for a given test, with the motive as registered by the school administration.
+This is slightly better than using the calendar view for attendance on the website, which checks for a "class" of students whereas
+this program checks for a "class". Groups can mix students from multiple classes, and tests are given to a group, not a class.
+On top of
+that the program filters out the students who have a numeric non zero grade for the test. 
+
+The user can also choose to check the attendance for a whole group for a given date, irrespective of tests (this is useful for a test which is not uploaded to the website yet).
+
+### lvs_find_free_room (La Vie Scolaire only for now)
+
+This program downloads the time schedule for each room then displays the ones which are free at a given date and time. Without any arguments, it asks for date and time.
 
 ## Configuration file
 
@@ -65,7 +70,7 @@ command-line parameters, for example the "user" parameter to save time at login.
 The values from the config file are overridden by those passed on the command line.
 
 A specific case is the base-url parameter. If this is not provided, the program will ask interactively for the url, then
-create a configuration file to save it for future use.
+create a configuration file to save it for future use. This url is used to detect if the La Vie Scolaire or pronote back end should be used.
 
 ## Distribution / customization
 

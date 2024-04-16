@@ -27,8 +27,9 @@ def get_evaluations_from_csv(csv_fname):
         match= re.search('/' + float_group + ' - Coef : ' + float_group, desc_s)
         if match is None:
             continue
-        # This line should not raise any error given "float_re".
-        desc= (i, float(match.groups()[0]), float(match.groups()[1]))
+        max_grade= float(match.groups()[0].replace(",","."))
+        coefficient= float(match.groups()[1].replace(",","."))
+        desc= (i, max_grade, coefficient)
         evaluation_name= rows[0][i]
         if evaluation_name.strip() == "":
             raise RuntimeError(f'Detected a evaluation description "{desc}" in column {i+1} (starting from 1), but the cell above is empty (expected a valid evaluation name).')
