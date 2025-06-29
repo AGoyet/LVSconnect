@@ -15,9 +15,6 @@ To make it transparent to the calling module, the functions take the same argume
 
 import logging
 
-# logging.basicConfig()
-logging.basicConfig(level=logging.DEBUG)
-
 import re
 import functools
 import random
