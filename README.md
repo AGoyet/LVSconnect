@@ -7,8 +7,8 @@ A valid username and password for the website is necessary.
 
 You will need to have Python 3 and the packages in requirements.txt installed. This can be done in a console with:
 ```
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+python3 -m pip install --upgrade pip
+python3 -m pip install -r requirements.txt
 ```
 
 The packages `tkcalendar` and `pronotepy` are optional. Without `tkcalendar`, the programs will automatically select the "no graphical interface" option. Without `pronotepy`, connection will only be possible to La Vie Scolaire.

@@ -1,3 +1,5 @@
+# From https://github.com/Alg0v/pronotepy_monlycee
+
 import typing
 
 import requests
@@ -9,6 +11,7 @@ from pronotepy import ENTLoginError
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:73.0) Gecko/20100101 Firefox/73.0"
 }
+
 
 @typing.no_type_check
 def _monlycee_net(
@@ -66,5 +69,5 @@ def _monlycee_net(
 
         return session.cookies
 
-ile_de_france = partial(_monlycee_net)
 
+ile_de_france = partial(_monlycee_net)
