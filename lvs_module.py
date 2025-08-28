@@ -170,28 +170,28 @@ shared_arg_descs = [
         },
     ),
     (
-        ("--client-identifier",),
+        ("--client_identifier",),
         {
             "dest": "client_identifier",
             "help": "Pronote client identifier for persistent sessions.",
         },
     ),
     (
-        ("--device-name",),
+        ("--device_name",),
         {"dest": "device_name", "help": "Device name for Pronote registration."},
     ),
     (
-        ("--account-pin",),
+        ("--account_pin",),
         {
             "dest": "account_pin",
             "help": "4-digit account PIN for Pronote registration.",
         },
     ),
     (
-        ("--ent-name",),
+        ("--ent_name",),
         {
             "dest": "ent_name",
-            "help": "Name of the ENT to use. Must be a function name in pronote ent modules.",
+            "help": 'Name of the ENT to use. Must be a function name in pronote ent modules or "ile_de_france".',
         },
     ),
 ]
