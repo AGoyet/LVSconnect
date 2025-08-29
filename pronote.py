@@ -105,11 +105,11 @@ trimester_regex = r"Trimestre (?:1|2|3)"
 
 
 def donnees(r):
-    return r["donneesSec"]["data"]
+    return r["dataSec"]["data"]
 
 
 def get_response_data(r, key=None):
-    d = r["donneesSec"]["data"]
+    d = r["dataSec"]["data"]
     keys = list(d.keys())
     if not key:
         assert len(keys) == 1
@@ -652,7 +652,7 @@ def send_apprs_dopost(
             return
         if no_web_appr:
             try:
-                appr_id = r["donneesSec"]["RapportSaisie"]["appreciation"]["V"]["N"]
+                appr_id = r["dataSec"]["RapportSaisie"]["appreciation"]["V"]["N"]
             except KeyError:
                 print("Error creating new appreciation")
                 pprint(r)
