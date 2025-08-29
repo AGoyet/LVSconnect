@@ -71,3 +71,5 @@ def _monlycee_net(
 
 
 ile_de_france = partial(_monlycee_net)
+monlycee = partial(_monlycee_net)
+monlycee_net = partial(_monlycee_net)

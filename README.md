@@ -1,7 +1,9 @@
 # LVSconnect
-This project aims to automate some tasks when using either the "La Vie Scolaire" websites made by AXESS, or the "pronote" websites made by INDEX ÉDUCATION. The project is not affiliated with AXESS or INDEX ÉDUCATION.
+This project aims to automate some tasks when using either the "La Vie Scolaire" websites made by AXESS, or the "Pronote" websites made by INDEX ÉDUCATION. This project is not affiliated with AXESS or INDEX ÉDUCATION.
 
 A valid username and password for the website is necessary.
+
+Note: For Pronote, if the connection fails, you might need to specify the ENT used by the institution with the  `--ent_name` argument.  See [pronotepy](https://github.com/bain3/pronotepy/tree/master/pronotepy/ent) for a list of possible ENTs, or use  `--ent_name=monlycee` for the monlycee.net ENT.
 
 ## Installation
 
