@@ -191,7 +191,7 @@ shared_arg_descs = [
         ("--ent_name",),
         {
             "dest": "ent_name",
-            "help": 'Name of the ENT to use. Must be a function name in pronote ent modules or "ile_de_france".',
+            "help": 'Name of the ENT to use with Pronote. Must be a function name in pronotepy ent modules, or "monlycee".',
         },
     ),
 ]
