@@ -5,11 +5,11 @@ block_cipher = None
 
 
 a = Analysis(
-    ['lvs_find_free_room.py'],
+    ["lvs_find_free_room.py"],
     pathex=[],
     binaries=[],
     datas=[],
-    hiddenimports=['babel.numbers'],
+    hiddenimports=["babel.numbers"],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -26,7 +26,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='lvs_find_free_room',
+    name="lvs_find_free_room",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -46,5 +46,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='lvs_find_free_room',
+    name="lvs_find_free_room",
 )

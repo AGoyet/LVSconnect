@@ -5,7 +5,7 @@ block_cipher = None
 
 
 a = Analysis(
-    ['lvs_send_grades.py'],
+    ["lvs_send_grades.py"],
     pathex=[],
     binaries=[],
     datas=[],
@@ -26,7 +26,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='lvs_send_grades',
+    name="lvs_send_grades",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -46,5 +46,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='lvs_send_grades',
+    name="lvs_send_grades",
 )
