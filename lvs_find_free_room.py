@@ -345,6 +345,7 @@ def load_time_slots(fname, time_slots, always_free, update_times, rooms):
 
 
 # Returns result as text
+@pronote.notimplemented
 def find_and_display_free_rooms(
     s,
     date_tuple,
