@@ -50,6 +50,7 @@ def get_lsl_appr_cols_and_discs(csv_fname):
 
 
 # returns dict of group_name : group_id
+@pronote.notimplemented
 def mandatory_get_attendance_classgroups(s):
     # These requests (r1 to r3) are mandatory as they redirects through a "/vsn.main/main/externalOpen"
     # with an "extautolog" encrypted parameter.
