@@ -8,7 +8,6 @@ Downloads the time schedule for each room then displays the ones which are free 
 
 from lvs_module import *
 
-import datetime
 from bs4 import BeautifulSoup
 import pickle
 

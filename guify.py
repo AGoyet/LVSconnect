@@ -7,7 +7,6 @@ Be advised that doing "import *" from this module will replace the built-in "inp
 
 # Used in nogui funs
 import getpass
-import os
 
 import datetime
 import re

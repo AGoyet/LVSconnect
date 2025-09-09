@@ -13,8 +13,6 @@ To make it transparent to the calling module, the functions take the same argume
 - The LVS backend uses "service_id" value. In pronote this will be a "group_data" json object.
 """
 
-import logging
-
 import re
 import functools
 import random

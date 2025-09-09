@@ -6,18 +6,19 @@ Scripting for an Axess website.
 from guify import *
 import pronote
 
+import logging
 import requests
+import argparse
+import appdirs
+
 import json
 import csv
 import base64
 import os, sys
-import datetime
 import os.path
-import re
 import time
-import getpass
-import argparse
-import appdirs
+import datetime
+import re
 import functools
 
 appname = "LVSconnect"
@@ -170,6 +171,13 @@ shared_arg_descs = [
         },
     ),
     (
+        ("--debug",),
+        {
+            "action": argparse.BooleanOptionalAction,
+            "help": "Show debug output.",
+        },
+    ),
+    (
         ("--client_identifier",),
         {
             "dest": "client_identifier",
@@ -214,6 +222,7 @@ def lvs_get_args(
         "password",
         "login_url",
         "cli",
+        "debug",
         "client_identifier",
         "device_name",
         "account_pin",
@@ -258,6 +267,9 @@ def lvs_get_args(
     if should_process("cli"):
         if args["cli"]:
             guify_disable_gui()
+    if should_process("debug"):
+        if args["debug"]:
+            logging.basicConfig(level=logging.DEBUG)
     if should_process("dry-run"):
         if args["dry_run"] is None:
             args["dry_run"] = False
