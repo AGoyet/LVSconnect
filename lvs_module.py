@@ -764,7 +764,7 @@ def get_trimester_nb_from_fname(fname):
     if not m:
         return None
     trimester_s = m.group()
-    trimester_nb = int(re.search("\d", trimester_s).group())
+    trimester_nb = int(re.search(r"\d", trimester_s).group())
     return trimester_nb
 
 
