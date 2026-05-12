@@ -62,6 +62,10 @@ def _monlycee_net(
 
         r = session.post(form.get("action"), data=payload, headers=HEADERS)
 
+        print("DEBUG: Dumping monlycee response to monlycee_debug.html")
+        with open("monlycee_debug.html", "w", encoding="utf-8") as f:
+            f.write(r.text)
+
         soup = BeautifulSoup(r.text, "html.parser")
         username_input = soup.find(id="username")
         if username_input is not None and username_input.get("aria-invalid") == "true":
