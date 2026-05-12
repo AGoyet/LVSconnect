@@ -171,6 +171,7 @@ def open_session(
     device_name=None,
     account_pin=None,
     ent_name=None,
+    ent_cookies=None,
 ):
     if client_identifier is None:
         if account_pin is None:
@@ -180,29 +181,20 @@ def open_session(
         if not device_name and account_pin:
             device_name = "lvs" + str(random.randint(100000, 999999))
             print(f"Using device name {device_name}")
+            
     ent = get_ent_from_name(ent_name)
-
-    # Monkey patch pronotepy to get full debug of the communication
-    import pprint
-    if not hasattr(pronotepy.pronoteAPI._Communication, "_orig_post"):
-        pronotepy.pronoteAPI._Communication._orig_post = pronotepy.pronoteAPI._Communication.post
-        
-        def debug_post(self, function_name, data):
-            print(f"\n--- DEBUG POST: {function_name} ---")
-            print("REQUEST DATA:")
-            pprint.pprint(data)
-            try:
-                res = self._orig_post(function_name, data)
-                print("RESPONSE:")
-                pprint.pprint(res)
-                return res
-            except Exception as e:
-                print(f"EXCEPTION in {function_name}: {e}")
-                if hasattr(e, 'pronote_error_msg'):
-                    print(f"PRONOTE ERROR MSG: {e.pronote_error_msg}")
-                raise
-                
-        pronotepy.pronoteAPI._Communication.post = debug_post
+    if ent:
+        orig_ent = ent
+        def ent_wrapper(u, p, **kwargs):
+            cookies = orig_ent(u, p, ent_cookies=ent_cookies, **kwargs)
+            if update_config_file_fun:
+                cookie_list = [
+                    {"name": c.name, "value": c.value, "domain": c.domain, "path": c.path}
+                    for c in cookies
+                ]
+                update_config_file_fun({"ent_cookies": cookie_list})
+            return cookies
+        ent = ent_wrapper
 
     try:
         client = pronotepy.Client(
@@ -215,8 +207,6 @@ def open_session(
             ent=ent,
         )
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         raise RuntimeError(str(e))
     if not client.logged_in:
         raise RuntimeError("Authentification failure")

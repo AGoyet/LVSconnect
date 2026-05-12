@@ -18,6 +18,7 @@ def _monlycee_net(
     username: str,
     password: str,
     url: str = "https://psn.monlycee.net",
+    ent_cookies: typing.Union[dict, list] = None,
     **opts: str,
 ) -> requests.cookies.RequestsCookieJar:
     """
@@ -50,26 +51,46 @@ def _monlycee_net(
 
     # ENT Connection
     with requests.Session() as session:
+        if ent_cookies:
+            if isinstance(ent_cookies, list):
+                for c in ent_cookies:
+                    session.cookies.set(c["name"], c["value"], domain=c.get("domain"), path=c.get("path"))
+            elif isinstance(ent_cookies, dict):
+                session.cookies.update(ent_cookies)
+
         response = session.get(url, headers=HEADERS)
-
         soup = BeautifulSoup(response.text, "html.parser")
+        
         form = soup.find(id="kc-form-login")
+        otp_form = soup.find(id="kc-otp-login-form")
 
-        if form is None:
-            raise ENTLoginError("Login form is missing")
+        if form is None and otp_form is None:
+            print(f"[ENT {url}] Re-using existing session")
+            return session.cookies
 
-        payload = {"username": username, "password": password}
+        if form is not None:
+            payload = {"username": username, "password": password}
+            r = session.post(form.get("action"), data=payload, headers=HEADERS)
 
-        r = session.post(form.get("action"), data=payload, headers=HEADERS)
+            soup = BeautifulSoup(r.text, "html.parser")
+            username_input = soup.find(id="username")
+            if username_input is not None and username_input.get("aria-invalid") == "true":
+                raise ENTLoginError("Username / Password is invalid")
+                
+            otp_form = soup.find(id="kc-otp-login-form")
 
-        print("DEBUG: Dumping monlycee response to monlycee_debug.html")
-        with open("monlycee_debug.html", "w", encoding="utf-8") as f:
-            f.write(r.text)
-
-        soup = BeautifulSoup(r.text, "html.parser")
-        username_input = soup.find(id="username")
-        if username_input is not None and username_input.get("aria-invalid") == "true":
-            raise ENTLoginError("Username / Password is invalid")
+        if otp_form is not None:
+            print("[ENT 2FA] This device is not trusted. A 6-digit code has been sent to your email.")
+            code = input("Please enter the 6-digit code: ")
+            
+            payload = {"emailCode": code.strip()}
+            action_url = otp_form.get("action")
+            
+            r = session.post(action_url, data=payload, headers=HEADERS)
+            soup = BeautifulSoup(r.text, "html.parser")
+            
+            if soup.find(id="kc-otp-login-form"):
+                raise ENTLoginError("Email code is invalid")
 
         return session.cookies
 

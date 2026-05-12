@@ -350,6 +350,7 @@ def open_session_from_args(args):
         "device_name",
         "account_pin",
         "ent_name",
+        "ent_cookies",
     ]
     d = {k: args[k] for k in needed_args if k in args}
     d["update_config_file_fun"] = update_config_file
