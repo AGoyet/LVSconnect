@@ -444,7 +444,8 @@ def create_grade_csv_rows(client, trimester_nb, group_data):
     apprs_col_i = len(csv_first_row) - 1
     csv_rows = [csv_first_row, csv_second_row]
     row_i_of_names = {}
-    for student_id, student_name in student_names_of_ids.items():
+    sorted_students = sorted(student_names_of_ids.items(), key=lambda item: item[1])
+    for student_id, student_name in sorted_students:
         # +1 for the trimester average
         row = [""] * (len(csv_first_row) + 1)
         row[0] = student_name
