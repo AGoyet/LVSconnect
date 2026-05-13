@@ -37,6 +37,20 @@ def set_is_pronote_backend(value):
         global ent_modules
         ent_modules = [pronotepy_monlycee, pronotepy.ent, pronotepy.ent.complex_ent]
         pronotepy.enable_debug_logging()
+        
+        import logging
+        import http.client as http_client
+        http_client.HTTPConnection.debuglevel = 1
+        
+        requests_log = logging.getLogger("urllib3")
+        requests_log.setLevel(logging.DEBUG)
+        requests_log.propagate = True
+        
+        fh = logging.FileHandler("pronotepy_debug.log")
+        fh.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        fh.setFormatter(formatter)
+        requests_log.addHandler(fh)
 
 # Must be called first
 def initialize(login_url=None, is_pronote_backend=None):

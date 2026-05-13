@@ -92,6 +92,43 @@ def _monlycee_net(
             if soup.find(id="kc-otp-login-form"):
                 raise ENTLoginError("Email code is invalid")
 
+        # Handle intermediary auto-submit forms (SAML, Trust Device, etc)
+        for _ in range(5):
+            form = soup.find("form")
+            if not form:
+                break
+                
+            # Do not auto-submit if the form requires text input
+            if form.find("input", type="text") or form.find("input", type="password"):
+                break
+
+            action = form.get("action")
+            if not action:
+                break
+
+            payload = {}
+            submit_found = False
+            for tag in form.find_all(["input", "button"]):
+                name = tag.get("name")
+                if not name:
+                    continue
+                tag_type = tag.get("type", "submit" if tag.name == "button" else "text").lower()
+                
+                if tag_type == "hidden":
+                    payload[name] = tag.get("value", "")
+                elif tag_type in ["submit", "button"]:
+                    if not submit_found:
+                        payload[name] = tag.get("value", "")
+                        submit_found = True
+
+            print(f"[ENT] Following intermediary form to {action}")
+            r = session.post(action, data=payload, headers=HEADERS)
+            soup = BeautifulSoup(r.text, "html.parser")
+
+        # Save final html to help with further debugging if it still fails
+        with open("pronotepy_debug_monlycee_final.html", "w", encoding="utf-8") as f:
+            f.write(soup.prettify())
+
         return session.cookies
 
 
