@@ -9,7 +9,7 @@ Provides reimplementations for the pronote backend of functions from the lvs mod
 The "initialize" function must be run before any calls to the reimplemented functions. If not (or if the backend is not detected or set to be pronote), the base functions will be run.
 
 To make it transparent to the calling module, the functions take the same argument in the same order. However, the content (and often type) of those arguments are different. In particular:
-- The LVS backend uses a request.session called "s". In pronote this will actually be a pronote_py.Client object, called "client" by the pronote version.  
+- The LVS backend uses a request.session called "s". In pronote this will actually be a pronote_py.ClientBase object, called "client" by the pronote version.  
 - The LVS backend uses "service_id" value. In pronote this will be a "group_data" json object.
 """
 
@@ -36,7 +36,7 @@ def set_is_pronote_backend(value):
 
         global ent_modules
         ent_modules = [pronotepy_monlycee, pronotepy.ent, pronotepy.ent.complex_ent]
-
+        pronotepy.enable_debug_logging()
 
 # Must be called first
 def initialize(login_url=None, is_pronote_backend=None):
@@ -161,7 +161,7 @@ def get_ent_from_name(ent_name):
 
 
 # reimplementation
-# Returns a pronotpy.Client object (instead of a request.session object)
+# Returns a pronotpy.ClientBase object (instead of a request.session object)
 def open_session(
     user,
     password,
@@ -197,7 +197,7 @@ def open_session(
         ent = ent_wrapper
 
     try:
-        client = pronotepy.Client(
+        client = pronotepy.ClientBase(
             login_url,
             username=user,
             password=password,
