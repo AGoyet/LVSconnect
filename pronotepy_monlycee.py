@@ -2,6 +2,7 @@
 
 import typing
 import logging
+from urllib.parse import urljoin
 
 import requests
 from bs4 import BeautifulSoup
@@ -68,8 +69,8 @@ def _monlycee_net(
             elif isinstance(ent_cookies, dict):
                 session.cookies.update(ent_cookies)
 
-        response = session.get(url, headers=HEADERS)
-        soup = BeautifulSoup(response.text, "html.parser")
+        r = session.get(url, headers=HEADERS)
+        soup = BeautifulSoup(r.text, "html.parser")
         
         form = soup.find(id="kc-form-login")
         otp_form = soup.find(id="kc-otp-login-form")
@@ -80,7 +81,8 @@ def _monlycee_net(
 
         if form is not None:
             payload = {"username": username, "password": password}
-            r = session.post(form.get("action"), data=payload, headers=HEADERS)
+            submit_url = urljoin(r.url, form.get("action"))
+            r = session.post(submit_url, data=payload, headers=HEADERS)
 
             soup = BeautifulSoup(r.text, "html.parser")
             username_input = soup.find(id="username")
@@ -94,10 +96,10 @@ def _monlycee_net(
             code = input("Please enter the 6-digit code: ")
             
             payload = {"emailCode": code.strip()}
-            action_url = otp_form.get("action")
+            submit_url = urljoin(r.url, otp_form.get("action"))
             
             print("[ENT] Submitting code...")
-            r = session.post(action_url, data=payload, headers=HEADERS)
+            r = session.post(submit_url, data=payload, headers=HEADERS)
             soup = BeautifulSoup(r.text, "html.parser")
             
             if soup.find(id="kc-otp-login-form"):
@@ -111,8 +113,9 @@ def _monlycee_net(
                 "trusted-device-name": "LVSconnect",
                 "trusted-device": "yes"
             }
+            submit_url = urljoin(r.url, action)
             print("[ENT] Registering this device as 'LVSconnect' to prevent future 2FA prompts...")
-            r = session.post(action, data=payload, headers=HEADERS)
+            r = session.post(submit_url, data=payload, headers=HEADERS)
             soup = BeautifulSoup(r.text, "html.parser")
 
         # Handle intermediary auto-submit forms (SAML, etc)
@@ -121,8 +124,15 @@ def _monlycee_net(
             if not form:
                 break
                 
-            # Do not auto-submit if the form requires text input
-            if form.find("input", type="text") or form.find("input", type="password"):
+            # Do not auto-submit if the form requires manual input
+            requires_input = False
+            for input_tag in form.find_all("input"):
+                input_type = input_tag.get("type", "text").lower()
+                if input_type not in ("hidden", "submit", "button"):
+                    requires_input = True
+                    break
+            
+            if requires_input:
                 break
 
             action = form.get("action")
@@ -144,8 +154,9 @@ def _monlycee_net(
                         payload[name] = tag.get("value", "")
                         submit_found = True
 
-            print(f"[ENT] Following intermediary form to {action}")
-            r = session.post(action, data=payload, headers=HEADERS)
+            submit_url = urljoin(r.url, action)
+            print(f"[ENT] Following intermediary form to {submit_url}")
+            r = session.post(submit_url, data=payload, headers=HEADERS)
             soup = BeautifulSoup(r.text, "html.parser")
 
         # Save final html to help with further debugging if it still fails

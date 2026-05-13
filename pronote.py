@@ -31,12 +31,11 @@ def set_is_pronote_backend(value):
     global __is_pronote_backend__
     __is_pronote_backend__ = value
     if __is_pronote_backend__:
-        global pronotepy, pronotepy_monlycee, pronotepy
+        global pronotepy, pronotepy_monlycee
         import pronotepy, pronotepy_monlycee, pronotepy.ent, pronotepy.ent.complex_ent
 
         global ent_modules
         ent_modules = [pronotepy_monlycee, pronotepy.ent, pronotepy.ent.complex_ent]
-        pronotepy.enable_debug_logging()
         
         import logging
         
