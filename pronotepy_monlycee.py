@@ -1,12 +1,15 @@
 # From https://github.com/Alg0v/pronotepy_monlycee
 
 import typing
+import logging
 
 import requests
 from bs4 import BeautifulSoup
 from functools import partial
 
 from pronotepy import ENTLoginError
+
+log = logging.getLogger(__name__)
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:73.0) Gecko/20100101 Firefox/73.0"
@@ -49,8 +52,15 @@ def _monlycee_net(
 
     print(f"[ENT {url}] Logging in with {username}")
 
+    def _log_response(resp, *args, **kwargs):
+        log.debug(f"--- HTTP Response from {resp.url} ---")
+        log.debug(f"Status: {resp.status_code}")
+        log.debug(f"Body:\n{resp.text}\n{'-'*40}")
+
     # ENT Connection
     with requests.Session() as session:
+        session.hooks["response"].append(_log_response)
+
         if ent_cookies:
             if isinstance(ent_cookies, list):
                 for c in ent_cookies:
@@ -86,13 +96,26 @@ def _monlycee_net(
             payload = {"emailCode": code.strip()}
             action_url = otp_form.get("action")
             
+            print("[ENT] Submitting code...")
             r = session.post(action_url, data=payload, headers=HEADERS)
             soup = BeautifulSoup(r.text, "html.parser")
             
             if soup.find(id="kc-otp-login-form"):
                 raise ENTLoginError("Email code is invalid")
 
-        # Handle intermediary auto-submit forms (SAML, Trust Device, etc)
+        # Handle Keycloak Trusted Device registration
+        trusted_device_form = soup.find(id="kc-form-trusted-device-name")
+        if trusted_device_form:
+            action = trusted_device_form.get("action")
+            payload = {
+                "trusted-device-name": "LVSconnect",
+                "trusted-device": "yes"
+            }
+            print("[ENT] Registering this device as 'LVSconnect' to prevent future 2FA prompts...")
+            r = session.post(action, data=payload, headers=HEADERS)
+            soup = BeautifulSoup(r.text, "html.parser")
+
+        # Handle intermediary auto-submit forms (SAML, etc)
         for _ in range(5):
             form = soup.find("form")
             if not form:
