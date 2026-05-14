@@ -31,11 +31,11 @@ def set_is_pronote_backend(value):
     global __is_pronote_backend__
     __is_pronote_backend__ = value
     if __is_pronote_backend__:
-        global pronotepy, pronotepy_monlycee
-        import pronotepy, pronotepy_monlycee, pronotepy.ent, pronotepy.ent.complex_ent
+        global pronotepy
+        import pronotepy, pronotepy.ent, pronotepy.ent.complex_ent
 
         global ent_modules
-        ent_modules = [pronotepy_monlycee, pronotepy.ent, pronotepy.ent.complex_ent]
+        ent_modules = [pronotepy.ent, pronotepy.ent.complex_ent]
         
         import logging
         
@@ -44,7 +44,7 @@ def set_is_pronote_backend(value):
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         fh.setFormatter(formatter)
 
-        for logger_name in ("urllib3", "pronotepy_monlycee", "pronotepy"):
+        for logger_name in ("urllib3", "pronotepy"):
             lg = logging.getLogger(logger_name)
             lg.setLevel(logging.DEBUG)
             lg.addHandler(fh)
