@@ -139,7 +139,7 @@ shared_arg_descs = [
     ),
     (
         ("-d", "--dry-run"),
-        {"action": "store_true", "help": "Do not upload anything to the website."},
+        {"action": "store_true", "help": "do not upload anything to the website"},
     ),
     (
         ("-u", "--user"),
@@ -167,32 +167,32 @@ shared_arg_descs = [
         ),
         {
             "action": argparse.BooleanOptionalAction,
-            "help": "Command line interface (launch without graphical dialog).",
+            "help": "command line interface (launch without graphical dialog)",
         },
     ),
     (
         ("--debug",),
         {
             "action": argparse.BooleanOptionalAction,
-            "help": "Save debug output to debug.log.",
+            "help": "save debug output to debug.log",
         },
     ),
     (
         ("--client_identifier",),
         {
             "dest": "client_identifier",
-            "help": "Pronote client identifier for persistent sessions.",
+            "help": "pronote client identifier for persistent sessions",
         },
     ),
     (
         ("--device_name",),
-        {"dest": "device_name", "help": "Device name for Pronote registration."},
+        {"dest": "device_name", "help": "device name for Pronote registration"},
     ),
     (
         ("--account_pin",),
         {
             "dest": "account_pin",
-            "help": "4-digit account PIN for Pronote registration.",
+            "help": "4-digit account PIN for Pronote registration",
         },
     ),
     (
