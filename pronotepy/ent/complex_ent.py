@@ -14,6 +14,7 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:73.0) Gecko/20100101 Firefox/73.0"
 }
 
+
 # Based on https://github.com/Alg0v/pronotepy_monlycee
 @typing.no_type_check
 def monlycee_net(
@@ -68,13 +69,18 @@ def monlycee_net(
         if ent_cookies:
             if isinstance(ent_cookies, list):
                 for c in ent_cookies:
-                    session.cookies.set(c["name"], c["value"], domain=c.get("domain"), path=c.get("path"))
+                    session.cookies.set(
+                        c["name"],
+                        c["value"],
+                        domain=c.get("domain"),
+                        path=c.get("path"),
+                    )
             elif isinstance(ent_cookies, dict):
                 session.cookies.update(ent_cookies)
 
         r = session.get(url, headers=HEADERS)
         soup = BeautifulSoup(r.text, "html.parser")
-        
+
         form = soup.find(id="kc-form-login")
         otp_form = soup.find(id="kc-otp-login-form")
 
@@ -89,22 +95,27 @@ def monlycee_net(
 
             soup = BeautifulSoup(r.text, "html.parser")
             username_input = soup.find(id="username")
-            if username_input is not None and username_input.get("aria-invalid") == "true":
+            if (
+                username_input is not None
+                and username_input.get("aria-invalid") == "true"
+            ):
                 raise ENTLoginError("Username / Password is invalid")
-                
+
             otp_form = soup.find(id="kc-otp-login-form")
 
         if otp_form is not None:
-            print("[ENT 2FA] This device is not trusted. A 6-digit code has been sent to your email.")
+            print(
+                "[ENT 2FA] This device is not trusted. A 6-digit code has been sent to your email."
+            )
             code = input("Please enter the 6-digit code: ")
-            
+
             payload = {"emailCode": code.strip()}
             submit_url = urljoin(r.url, otp_form.get("action"))
-            
+
             print("[ENT] Submitting code...")
             r = session.post(submit_url, data=payload, headers=HEADERS)
             soup = BeautifulSoup(r.text, "html.parser")
-            
+
             if soup.find(id="kc-otp-login-form"):
                 raise ENTLoginError("Email code is invalid")
 
@@ -113,12 +124,11 @@ def monlycee_net(
         if trusted_device_form:
             used_device_name = device_name or "Device"
             action = trusted_device_form.get("action")
-            payload = {
-                "trusted-device-name": used_device_name,
-                "trusted-device": "yes"
-            }
+            payload = {"trusted-device-name": used_device_name, "trusted-device": "yes"}
             submit_url = urljoin(r.url, action)
-            print(f"[ENT] Registering this device as '{used_device_name}' to prevent future 2FA prompts...")
+            print(
+                f"[ENT] Registering this device as '{used_device_name}' to prevent future 2FA prompts..."
+            )
             r = session.post(submit_url, data=payload, headers=HEADERS)
             soup = BeautifulSoup(r.text, "html.parser")
 
@@ -127,7 +137,7 @@ def monlycee_net(
             form = soup.find("form")
             if not form:
                 break
-                
+
             # Do not auto-submit if the form requires manual input
             requires_input = False
             for input_tag in form.find_all("input"):
@@ -135,7 +145,7 @@ def monlycee_net(
                 if input_type not in ("hidden", "submit", "button"):
                     requires_input = True
                     break
-            
+
             if requires_input:
                 break
 
@@ -149,8 +159,10 @@ def monlycee_net(
                 name = tag.get("name")
                 if not name:
                     continue
-                tag_type = tag.get("type", "submit" if tag.name == "button" else "text").lower()
-                
+                tag_type = tag.get(
+                    "type", "submit" if tag.name == "button" else "text"
+                ).lower()
+
                 if tag_type == "hidden":
                     payload[name] = tag.get("value", "")
                 elif tag_type in ["submit", "button"]:
@@ -164,6 +176,12 @@ def monlycee_net(
             soup = BeautifulSoup(r.text, "html.parser")
 
         return session.cookies
+
+
+# aliases
+monlycee = monlycee_net
+ile_de_france = monlycee_net
+
 
 @typing.no_type_check
 def ac_rennes(username: str, password: str) -> requests.cookies.RequestsCookieJar:
@@ -227,7 +245,3 @@ def ac_rennes(username: str, password: str) -> requests.cookies.RequestsCookieJa
             t = session.get(toutatice_auth, headers=HEADERS, params=params)
 
         return session.cookies
-
-# aliases
-monlycee = monlycee_net
-ile_de_france = monlycee_net
