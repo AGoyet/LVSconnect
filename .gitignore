@@ -1,4 +1,5 @@
 # project specific
+debug.log
 
 # PyInstaller
 dist/
