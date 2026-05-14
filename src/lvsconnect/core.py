@@ -368,6 +368,22 @@ def open_session_from_args(args):
     return s
 
 
+# Useful for testing (creating a temporary application importing core).
+def get_minimal_connection():
+    try:
+        s
+    except NameError:
+        arg_descs = []
+        shared_args = []
+        args = lvs_get_args(
+            arg_descs=arg_descs,
+            shared_args=shared_args,
+            description="test",
+        )
+        s = open_session_from_args(args)
+    return s
+
+
 @pronote.reimplemented
 def close_session(s):
     return s.close()
