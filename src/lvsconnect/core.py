@@ -14,6 +14,7 @@ import appdirs
 import json
 import csv
 import base64
+from bs4 import BeautifulSoup
 import os, sys
 import os.path
 import time
@@ -391,7 +392,7 @@ def close_session(s):
 
 @pronote.reimplemented
 def request_default_period(s):
-    raise Notimplemented
+    raise NotImplementedError
 
 
 def base64_pad(s):

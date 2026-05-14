@@ -223,7 +223,7 @@ def get_evaluation_id_and_create_evaluations(
         print(
             f"Found {len(evaluations_with_new_desc)} evaluation(s) with max grade or coefficient different than on the website: {', '.join(evaluations_with_new_desc)}"
         )
-        if create_evaluation:
+        if create_evaluations:
             dialog_s = f"Upload the modified max grades and coefficients? ({len(evaluations_with_new_desc)} evaluation(s) will be modified.)"
             answer = input_Yn(dialog_s)
             if answer:

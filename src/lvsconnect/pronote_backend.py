@@ -522,7 +522,7 @@ def create_grade_csv_rows(client, trimester_nb, group_data):
 
 
 # Without only_this_group_name, does all groups
-def create_grade_csv_files(only_this_group_name=None):
+def create_grade_csv_files(client, only_this_group_name=None):
     period_data = request_default_period(client)
     teacher_data = get_user_teacher(client)
     group_data_list = request_group_list(client)
@@ -536,6 +536,7 @@ def create_grade_csv_files(only_this_group_name=None):
 
 
 def send_new_grades(
+    client,
     new_grades_dict,
     evaluation_data=None,
     evaluation_name=None,
@@ -553,7 +554,7 @@ def send_new_grades(
             group_data = find_in_data(
                 group_data_list, G=2, L=group_name, exactly_one=True
             )
-        grades_data = request_grades(group_data)
+        grades_data = get_grades(client, group_data)
     if evaluation_data is None:
         assert evaluation_name
         evaluation_data = find_in_data(
@@ -563,14 +564,14 @@ def send_new_grades(
         )
     # Prepare post data
     new_students_data = []
-    for k in new_grades:
+    for k in new_grades_dict:
         student_name = k
         student_data = find_in_data(
             grades_data["listeEleves"]["V"], L=student_name, exactly_one=True
         )
         new_grade = new_grades_dict[k]
         new_grade = new_grade.replace(".", ",")
-        new_grade_data = {"_T": 10, "V": Util.grade_compose(new_grade)}
+        new_grade_data = {"_T": 10, "V": grade_compose(new_grade)}
         new_student_data = union_dict(
             filter_dict(student_data, "NL"), {"note": new_grade_data}
         )
@@ -845,9 +846,9 @@ def send_message(
 
 # reimplementation
 def send_student_line_as_discussion(
-    subject, message, student_name, possible_recipient_sutdents
+    client, subject, message, student_name, possible_recipient_students
 ):
     recipient_data = find_recipient(
-        student_name, possible_recipient_sutdents, enseigne=True
+        client, student_name, possible_recipient_students, enseigne=True
     )
-    new_discussion(subject, message, recipient_data=recipient_data)
+    new_discussion(client, subject, message, recipient_data=recipient_data)
