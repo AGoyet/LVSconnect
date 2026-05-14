@@ -21,7 +21,7 @@ class PronoteAPIError(Exception):
         self,
         *args: object,
         pronote_error_code: Optional[int] = None,
-        pronote_error_msg: Optional[str] = None
+        pronote_error_msg: Optional[str] = None,
     ) -> None:
         super().__init__(*args)
         self.pronote_error_code = pronote_error_code

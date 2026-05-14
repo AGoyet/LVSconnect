@@ -65,7 +65,7 @@ class _Communication(object):
         # get rsa keys and session id, retry 3 times
         for _ in range(3):
             try:
-                log.debug(f"Requesing html: {self.root_site}/{self.html_page}")
+                log.debug(f"Requesting html: {self.root_site}/{self.html_page}")
                 get_response = self.session.request(
                     "GET",
                     f"{self.root_site}/{self.html_page}",
@@ -171,9 +171,11 @@ class _Communication(object):
 
         # error protection
         if not response.ok:
-            log.debug(f"[_Communication.post] HTTP Error {response.status_code}: {response.content!r}")
+            log.debug(
+                f"[_Communication.post] HTTP Error {response.status_code}: {response.content!r}"
+            )
             raise PronoteAPIError(f"Bad request (http status: {response.status_code})")
-        
+
         r_json_raw = response.json()
         if "Erreur" in r_json_raw:
             r_json = r_json_raw
@@ -258,7 +260,9 @@ class _Communication(object):
         if onload:
             match = re.search(r"Start ?\({(?P<param>[^}]*)}\)", onload["onload"])  # type: ignore
             if not match:
-                log.debug(f"[_Communication._parse_html] Unexpected HTML received (missing Start regex): {html!r}")
+                log.debug(
+                    f"[_Communication._parse_html] Unexpected HTML received (missing Start regex): {html!r}"
+                )
                 raise PronoteAPIError(
                     "Page html is different than expected. Be sure that pronote_url is the direct url to your pronote page."
                 )
@@ -266,7 +270,9 @@ class _Communication(object):
         elif b"IP" in html:
             raise PronoteAPIError("Your IP address is suspended.")
         else:
-            log.debug(f"[_Communication._parse_html] Unexpected HTML received (missing id_body): {html!r}")
+            log.debug(
+                f"[_Communication._parse_html] Unexpected HTML received (missing id_body): {html!r}"
+            )
             raise PronoteAPIError(
                 "Page html is different than expected. Be sure that pronote_url is the direct url to your pronote page."
             )

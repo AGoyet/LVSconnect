@@ -181,7 +181,7 @@ shared_arg_descs = [
         ("--client_identifier",),
         {
             "dest": "client_identifier",
-            "help": "pronote client identifier for persistent sessions",
+            "help": "Pronote client identifier for persistent sessions",
         },
     ),
     (
@@ -272,11 +272,13 @@ def lvs_get_args(
             # Inherited by urllib3 and pronotepy
             logging.basicConfig(
                 level=logging.DEBUG,
-                format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
                 handlers=[
                     # logging.StreamHandler(), # Prints to terminal
-                    logging.FileHandler("debug.log", mode="w", encoding="utf-8") # Writes to file
-                ]
+                    logging.FileHandler(
+                        "debug.log", mode="w", encoding="utf-8"
+                    )  # Writes to file
+                ],
             )
     if should_process("dry-run"):
         if args["dry_run"] is None:

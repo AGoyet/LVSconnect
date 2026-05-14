@@ -36,6 +36,7 @@ def set_is_pronote_backend(value):
     global __is_pronote_backend__
     __is_pronote_backend__ = value
 
+
 # Must be called first
 def initialize(login_url=None, is_pronote_backend=None):
     if login_url is None:
@@ -182,17 +183,24 @@ def open_session(
     ent = get_ent_from_name(ent_name)
     if ent:
         orig_ent = ent
+
         def ent_wrapper(u, p, **kwargs):
             if ent_name in ("ile_de_france", "monlycee", "monlycee_net"):
                 kwargs["device_name"] = device_name
             cookies = orig_ent(u, p, ent_cookies=ent_cookies, **kwargs)
             if update_config_file_fun:
                 cookie_list = [
-                    {"name": c.name, "value": c.value, "domain": c.domain, "path": c.path}
+                    {
+                        "name": c.name,
+                        "value": c.value,
+                        "domain": c.domain,
+                        "path": c.path,
+                    }
                     for c in cookies
                 ]
                 update_config_file_fun({"ent_cookies": cookie_list})
             return cookies
+
         ent = ent_wrapper
     try:
         client = pronotepy.ClientBase(

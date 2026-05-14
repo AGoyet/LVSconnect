@@ -229,5 +229,6 @@ def cli():
     display_errors(main)
     show_message("Done.")
 
+
 if __name__ == "__main__":
     cli()

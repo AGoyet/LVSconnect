@@ -33,7 +33,8 @@ if TYPE_CHECKING:
     from typing_extensions import Protocol
 
     class ENTFunction(Protocol):
-        def __call__(self, u: str, p: str, **kwargs: str) -> RequestsCookieJar: ...
+        def __call__(self, u: str, p: str, **kwargs: str) -> RequestsCookieJar:
+            ...
 
 
 __all__ = ("ClientBase",)
@@ -561,4 +562,3 @@ class ClientBase:
             ),
             **req["dataSec"]["data"],
         }
-
