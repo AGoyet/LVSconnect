@@ -22,7 +22,7 @@ import datetime
 import re
 import functools
 
-appname = "LVSconnect"
+appname = "lvsconnect"
 config_fname = appname + "_config.json"
 
 # Will be read from config or input

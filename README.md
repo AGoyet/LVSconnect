@@ -1,9 +1,9 @@
-# LVSconnect
+# lvsconnect
 This project aims to automate some tasks when using either the "La Vie Scolaire" websites made by AXESS, or the "Pronote" websites made by INDEX ÉDUCATION. This project is not affiliated with AXESS or INDEX ÉDUCATION.
 
 A valid username and password for the website is necessary.
 
-Note: For Pronote, if the connection fails, you might need to specify the ENT used by the institution with the  `--ent_name` argument.  See [pronotepy](https://github.com/bain3/pronotepy/tree/master/pronotepy/ent) for a list of possible ENTs, or use  `--ent_name=monlycee` for the monlycee.net ENT.
+Note: For Pronote, if the connection fails, you might need to specify the ENT used by the institution with the  `--ent_name` argument.  Run `lvs-list-ents` to see the full list.
 
 ## Installation
 
@@ -13,14 +13,14 @@ python3 -m pip install --upgrade pip
 python3 -m pip install -r requirements.txt
 ```
 
-The packages `tkcalendar` and `pronotepy` are optional. Without `tkcalendar`, the programs will automatically select the "no graphical interface" option. Without `pronotepy`, connection will only be possible to La Vie Scolaire.
+The packages `tkcalendar` is optional. Without `tkcalendar`, the programs will automatically select the "no graphical interface" option.
 
 ## Usage
 
 All programs have command line options (launch any with "-h" to see those options), but all can be run without any options,
 and will ask interactively for any needed parameter.
 
-### lvs_send_grades
+### lvs-send-grades
 
 This program does the reverse of the "export" function on the website. The user should first use that function to get a .csv
 (the export option is hidden in a "three dots" menu button in the "appreciation" tab of the "evaluation" section). The user can
@@ -38,7 +38,7 @@ Each test present on the website has a creation date and a "published" flag (on 
 the exported .csv file, the program cannot guess them accurately (the current date is used when creating tests). The user will
 thus need to use the website to set those correctly, for example when uploading multiple tests at once.
 
-### lvs_send_appreciations
+### lvs-send-appreciations
 
 This program does essentially the same as lvs_send_grades, but for appreciations. The user can download the .csv file 
 from the website, edit column with the student's appreciations, then use the program to upload those to the website. If
@@ -49,7 +49,7 @@ ask for confirmation.
 The program can modify an existing appreciation, but not create a new one. This seems to be due to an inconsistency in the internal pronote API. The only fix currently is to create dummy appreciations first, then overwrite with the program. Note that empty appreciations (including white spaces) are not saved on pronote. The dummy appreciations should therefore contain at least one character, for example ".".
 
 
-### lvs_attendance (La Vie Scolaire only for now)
+### lvs-attendance (La Vie Scolaire only for now)
 
 This program will show all students that were absent for a given test, with the motive as registered by the school administration.
 This is slightly better than using the calendar view for attendance on the website, which checks for a "class" of students whereas
@@ -59,7 +59,7 @@ that the program filters out the students who have a numeric non zero grade for 
 
 The user can also choose to check the attendance for a whole group for a given date, irrespective of tests (this is useful for a test which is not uploaded to the website yet).
 
-### lvs_find_free_room (La Vie Scolaire only for now)
+### lvs-find-free-room (La Vie Scolaire only for now)
 
 This program downloads the time schedule for each room then displays the ones which are free at a given date and time. Without any arguments, it asks for date and time.
 
@@ -67,7 +67,7 @@ This program downloads the time schedule for each room then displays the ones wh
 
 By default, all programs look for a config file in the platform appropriate locations, using module 
 [appdir](https://pypi.org/project/appdirs/),
-and also in the executable's folder. This is a json file named `LVSconnect_config.json`. It can contain any of the 
+and also in the executable's folder. This is a json file named `lvsconnect_config.json`. It can contain any of the 
 command-line parameters, for example the "user" parameter to save time at login.
 The values from the config file are overridden by those passed on the command line.
 
@@ -76,7 +76,7 @@ create a configuration file to save it for future use. This url is used to detec
 
 ## Distribution / customization
 
-To distribute this program to staff at your school, you might want to add your own `LVSconnect_config.json` file with your
+To distribute this program to staff at your school, you might want to add your own `lvsconnect_config.json` file with your
 own school's base url as explained in the "configuration file" section. This can be done easily by simply including the file 
 generated on first launch.
 

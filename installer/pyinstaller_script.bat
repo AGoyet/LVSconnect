@@ -6,4 +6,4 @@ pyi-makespec --console --hidden-import babel.numbers lvs_find_free_room.py
 pyi-makespec --console lvs_send_grades.py
 pyi-makespec --console lvs_send_appreciations.py
 
-pyinstaller --noconfirm LVSconnect.spec
+pyinstaller --noconfirm lvsconnect.spec

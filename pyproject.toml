@@ -8,7 +8,7 @@ version = "1.0.0"
 authors = [
     { name="Alexis Goyet" }
 ]
-description = "A tool to connect and manage LVS data via Pronote"
+description = 'A set of tools to connect to "La Vie Scolaire" and "pronote" websites'
 readme = "README.md"
 requires-python = ">=3.9"
 classifiers = [
