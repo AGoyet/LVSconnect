@@ -35,19 +35,6 @@ cached_possible_recipient_data_list = None
 def set_is_pronote_backend(value):
     global __is_pronote_backend__
     __is_pronote_backend__ = value
-    if __is_pronote_backend__:
-        import logging
-        
-        fh = logging.FileHandler("pronotepy_debug.log", mode="w", encoding="utf-8")
-        fh.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        fh.setFormatter(formatter)
-
-        for logger_name in ("urllib3", "pronotepy"):
-            lg = logging.getLogger(logger_name)
-            lg.setLevel(logging.DEBUG)
-            lg.addHandler(fh)
-            lg.propagate = False
 
 # Must be called first
 def initialize(login_url=None, is_pronote_backend=None):

@@ -174,7 +174,7 @@ shared_arg_descs = [
         ("--debug",),
         {
             "action": argparse.BooleanOptionalAction,
-            "help": "Show debug output.",
+            "help": "Save debug output to debug.log.",
         },
     ),
     (
@@ -269,7 +269,15 @@ def lvs_get_args(
             guify_disable_gui()
     if should_process("debug"):
         if args["debug"]:
-            logging.basicConfig(level=logging.DEBUG)
+            # Inherited by urllib3 and pronotepy
+            logging.basicConfig(
+                level=logging.DEBUG,
+                format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                handlers=[
+                    # logging.StreamHandler(), # Prints to terminal
+                    logging.FileHandler("debug.log", mode="w", encoding="utf-8") # Writes to file
+                ]
+            )
     if should_process("dry-run"):
         if args["dry_run"] is None:
             args["dry_run"] = False

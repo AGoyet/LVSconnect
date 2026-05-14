@@ -1,4 +1,4 @@
-from logging import getLogger, DEBUG
+from logging import getLogger
 import typing
 
 import requests
@@ -8,7 +8,6 @@ from urllib.parse import urljoin, urlparse, urlunparse
 from ..exceptions import *
 
 log = getLogger(__name__)
-log.setLevel(DEBUG)
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:73.0) Gecko/20100101 Firefox/73.0"
