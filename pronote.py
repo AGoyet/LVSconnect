@@ -190,14 +190,15 @@ def open_session(
             account_pin = input(
                 "Account pin might be needed (no client identifier, might need to register with pin). Enter 4 digit pin or leave blank if not required by the website.\n"
             )
-        if not device_name and account_pin:
-            device_name = "lvs" + str(random.randint(100000, 999999))
-            print(f"Using device name {device_name}")
-            
+    if not device_name:
+        device_name = "lvs" + str(random.randint(100000, 999999))
+        print(f"Using device name {device_name}")
     ent = get_ent_from_name(ent_name)
     if ent:
         orig_ent = ent
         def ent_wrapper(u, p, **kwargs):
+            if ent_name in ("ile_de_france", "monlycee", "monlycee_net"):
+                kwargs["device_name"] = device_name
             cookies = orig_ent(u, p, ent_cookies=ent_cookies, **kwargs)
             if update_config_file_fun:
                 cookie_list = [
@@ -207,7 +208,6 @@ def open_session(
                 update_config_file_fun({"ent_cookies": cookie_list})
             return cookies
         ent = ent_wrapper
-
     try:
         client = pronotepy.ClientBase(
             login_url,

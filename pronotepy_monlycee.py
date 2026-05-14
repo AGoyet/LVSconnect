@@ -1,4 +1,4 @@
-# From https://github.com/Alg0v/pronotepy_monlycee
+# Based on https://github.com/Alg0v/pronotepy_monlycee
 
 import typing
 import logging
@@ -23,10 +23,11 @@ def _monlycee_net(
     password: str,
     url: str = "https://psn.monlycee.net",
     ent_cookies: typing.Union[dict, list] = None,
+    device_name: typing.Optional[str] = None,
     **opts: str,
 ) -> requests.cookies.RequestsCookieJar:
     """
-    ENT for monlycee.net with the new website
+    ENT for monlycee.net
 
     Parameters
     ----------
@@ -108,13 +109,14 @@ def _monlycee_net(
         # Handle Keycloak Trusted Device registration
         trusted_device_form = soup.find(id="kc-form-trusted-device-name")
         if trusted_device_form:
+            used_device_name = device_name or "Device"
             action = trusted_device_form.get("action")
             payload = {
-                "trusted-device-name": "LVSconnect",
+                "trusted-device-name": used_device_name,
                 "trusted-device": "yes"
             }
             submit_url = urljoin(r.url, action)
-            print("[ENT] Registering this device as 'LVSconnect' to prevent future 2FA prompts...")
+            print(f"[ENT] Registering this device as '{used_device_name}' to prevent future 2FA prompts...")
             r = session.post(submit_url, data=payload, headers=HEADERS)
             soup = BeautifulSoup(r.text, "html.parser")
 
