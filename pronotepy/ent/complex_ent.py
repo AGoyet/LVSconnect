@@ -35,6 +35,10 @@ def monlycee_net(
         password
     url: str
         url of the ent login page
+    ent_cookies: typing.Union[dict, list], optional
+        existing cookies to reuse
+    device_name: str, optional
+        device name for 2FA registration
 
     Returns
     -------
@@ -158,10 +162,6 @@ def monlycee_net(
             print(f"[ENT] Following intermediary form to {submit_url}")
             r = session.post(submit_url, data=payload, headers=HEADERS)
             soup = BeautifulSoup(r.text, "html.parser")
-
-        # Save final html to help with further debugging if it still fails
-        with open("pronotepy_debug_monlycee_final.html", "w", encoding="utf-8") as f:
-            f.write(soup.prettify())
 
         return session.cookies
 
