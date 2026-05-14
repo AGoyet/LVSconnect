@@ -6,7 +6,7 @@ Scripting for an Axess website.
 Downloads the time schedule for each room then displays the ones which are free at a given date and time.
 """
 
-from lvs_module import *
+from lvsconnect.core import *
 
 from bs4 import BeautifulSoup
 import pickle
@@ -608,6 +608,10 @@ def main():
             close_session(s)
 
 
-if __name__ == "__main__":
+def cli():
+    """Entry point designated for the command line interface."""
     display_errors(main)
     show_message("Done.")
+
+if __name__ == "__main__":
+    cli()

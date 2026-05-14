@@ -6,7 +6,7 @@ Scripting for an Axess website.
 Cecks for student's attendance for a given test or date.
 """
 
-from lvs_module import *
+from lvsconnect.core import *
 
 from bs4 import BeautifulSoup
 
@@ -579,6 +579,11 @@ def main():
             close_session(s)
 
 
-if __name__ == "__main__":
+def cli():
+    """Entry point designated for the command line interface."""
     display_errors(main)
     show_message("Done.")
+
+
+if __name__ == "__main__":
+    cli()

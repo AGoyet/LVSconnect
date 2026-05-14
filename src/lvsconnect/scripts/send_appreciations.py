@@ -4,7 +4,7 @@
 Scripting for an Axess website.
 """
 
-from lvs_module import *
+from lvsconnect.core import *
 
 add_url("get_apprs", "/vsn.main/WSCompetences/loadInfosFinPeriode")
 add_url("send_appr", "/vsn.main/WSCompetences/saveAppreciation")
@@ -224,18 +224,10 @@ def main():
             close_session(s)
 
 
-if __name__ == "__main__":
+def cli():
+    """Entry point designated for the command line interface."""
     display_errors(main)
     show_message("Done.")
 
-"""
-from importlib import reload
-os.chdir("/home/alexis/code/LVSconnect")
-import lvs_module
-reload(lvs_module)
-import pronote
-reload(pronote)
-
-os.chdir("/home/alexis/work/lycee/eleves/MATHTC 1G79")
-main()
-"""
+if __name__ == "__main__":
+    cli()

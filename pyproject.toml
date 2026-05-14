@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lvsconnect"
+version = "1.0.0"
+authors = [
+    { name="Alexis Goyet" }
+]
+description = "A tool to connect and manage LVS data via Pronote"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    # Add any external pip dependencies required by your code here
+]
+
+[project.scripts]
+lvs-attendance = "lvsconnect.scripts.attendance:cli"
+lvs-find-room = "lvsconnect.scripts.find_room:cli"
+lvs-send-grades = "lvsconnect.scripts.send_grades:cli"
+lvs-send-appreciations = "lvsconnect.scripts.send_appreciations:cli"
+
+[tool.setuptools.packages.find]
+where = ["src"]

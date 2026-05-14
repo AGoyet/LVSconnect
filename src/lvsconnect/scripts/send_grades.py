@@ -6,7 +6,7 @@ Scripting for an Axess website.
 Send grades from csv file to the website.
 """
 
-from lvs_module import *
+from lvsconnect.core import *
 
 add_url("send_grades", "/vsn.main/WSCompetences/saveBatchEvaluations")
 add_url("create_evaluation", "/vsn.main/WSCompetences/creerEvaluation")
@@ -492,6 +492,10 @@ def main():
             close_session(s)
 
 
-if __name__ == "__main__":
+def cli():
+    """Entry point designated for the command line interface."""
     display_errors(main)
     show_message("Done.")
+
+if __name__ == "__main__":
+    cli()

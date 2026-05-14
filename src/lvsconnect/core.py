@@ -3,8 +3,8 @@
 Scripting for an Axess website.
 """
 
-from guify import *
-import pronote
+from .guify import *
+from . import pronote_backend as pronote
 
 import logging
 import requests

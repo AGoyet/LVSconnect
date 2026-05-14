@@ -17,10 +17,15 @@ import re
 import functools
 import random
 
+from . import pronotepy
+from .pronotepy import ent
+from .pronotepy.ent import complex_ent
+
+ent_modules = [ent, complex_ent]
+
 # Should not be set manualy
 __is_pronote_backend__ = None
 
-ent_modules = []
 
 # See functions cache_possible_recipients and clear_possible_recipients_cache
 cached_possible_recipient_data_list = None
@@ -31,12 +36,6 @@ def set_is_pronote_backend(value):
     global __is_pronote_backend__
     __is_pronote_backend__ = value
     if __is_pronote_backend__:
-        global pronotepy
-        import pronotepy, pronotepy.ent, pronotepy.ent.complex_ent
-
-        global ent_modules
-        ent_modules = [pronotepy.ent, pronotepy.ent.complex_ent]
-        
         import logging
         
         fh = logging.FileHandler("pronotepy_debug.log", mode="w", encoding="utf-8")
